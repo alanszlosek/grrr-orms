@@ -56,9 +56,21 @@ class File extends Norma {
 $db = dbFacile::open('mysql', 'norma', 'norma', 'norma');
 Norma::$db = $db;
 
+/*
 $a = new Article();
 $a->ID = 1;
 //var_dump($a);
 
 $f = $a->Thumbnail;
+//$b = $a->Thumbnail;
+//var_dump($a);
+
+$a->Body = 'body';
+$a->Save();
 var_dump($a);
+*/
+
+$a = new Article();
+$a->Title = 'new title';
+$a->Body = 'new body';
+echo $a->Create();

@@ -17,6 +17,11 @@ NEW GOALS
 	- guess to_array() needs to walk these relations and return the proper nested structure (without cycles, if those are possible)
 - this means we sould be able to restore state simply by passing an array of fields in the constructor, which changes the way we handle primary keys slightly
 
+- use dbFacile or other for getting last id back from inserts
+- make sure updates work
+- escaping properly
+- quoting properly
+
 */
 
 abstract class Norma {
@@ -117,7 +122,24 @@ abstract class Norma {
 
 	// Alphabetical
 	public function Create() {
-		// basically a save, but with a different query
+		$changed = array_unique($this->changed);
+		// remove $pk from changed
+		$sql = 'INSERT ';
+		$sql .= ' INTO `' . static::$table . '` (';
+		$fields = array();
+		foreach ($this->changed as $field) {
+			$fields[] = '`' . static::$aliases[ $field ] . '`';	
+		}
+		$sql .= implode(', ', $fields);
+		$sql .= ') VALUES (';
+		$fields = array();
+		foreach ($this->changed as $field) {
+			$fields[] = "'" . mysql_real_escape_string($this->data[ $field ]) . "'";
+		}
+		$sql .= implode(', ', $fields);
+		$sql .= ')';	
+		return $sql;
+		return Norma::$db->execute($sql, $this->table);
 	}
 	
 	public function Delete() {
@@ -126,6 +148,11 @@ abstract class Norma {
 			Norma::$db->Execute($sql);
 		}
 	}
+	/*	
+	public function Escape($value) {
+		return Norma::$db->_escape
+	}
+	*/
 	
 	public function MakeSql($key, $value) {
 		$fields = array();
@@ -140,25 +167,6 @@ abstract class Norma {
 		$sql .= '`' . $key . '`=' . $value;
 		echo $sql . "\n";
 		return $sql;	
-	}
-	
-	public function MakeInsertSql($allownull=false) {
-		$changed = array_unique($this->changed);
-		// remove $pk from changed
-		$sql = 'INSERT ';
-		$sql .= ' INTO `' . static::$table . '` (';
-		$fields = array();
-		foreach ($this->changed as $field) {
-			$fields[] = '`' . static::$aliases[ $field ] . '`';	
-		}
-		$sql .= implode(', ', $fields);
-		$sql .= ') VALUES (';
-		foreach ($this->changed as $field) {
-			$fields[] = Norma::$db->Escape($this->data[ $field ]);
-		}
-		$sql .= implode(', ', $fields);
-		$sql .= ')';	
-		return $sql;
 	}
 	
 	public function Save($allownull=false) {
@@ -181,12 +189,12 @@ abstract class Norma {
 		// remove pk
 		$fields = array();
 		foreach ($changed as $field) {
-			$fields[] = '`' . $field . '`=' . Norma::$db->escape( $this->data[ $field ] );
+			$fields[] = '`' . static::$aliases[ $field ] . "`='" . mysql_real_escape_string( $this->data[ $field ] ) . "'";
 		}
 		$sql .= implode(', ', $fields);
-		$sql .= ' WHERE ' . static::$pk . '=' . Norma::$db->escape( $this->data[ static::$pk ] );
-		//echo $sql;
-		return Norma::$db->Execute($sql, $this->table);
+		$sql .= ' WHERE ' . static::$aliases[ static::$pk ] . "='" . mysql_real_escape_string( $this->data[ static::$pk ] ) . "'";
+		echo $sql . "\n";
+		return Norma::$db->execute($sql, $this->table);
 	}
 	
 	/*
