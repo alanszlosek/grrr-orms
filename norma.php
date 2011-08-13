@@ -9,31 +9,35 @@
 - can do type conversion
 - validation
 - caching behavior defined at static class level, integrates with memcache
+
+NEW GOALS
+- caches all data pulled from DB in $this->data
+- when you request an object from data that is actually the name of a relation, it'll instantiate the appropriate class for you
+	- yikes, but this means we'll have a copy of data in our nested $data, but after instantiation, the related object will be operating on a different array ... guess i shouldn't do things that way
+	- guess to_array() needs to walk these relations and return the proper nested structure (without cycles, if those are possible)
+- this means we sould be able to restore state simply by passing an array of fields in the constructor, which changes the way we handle primary keys slightly
+
 */
 
-abstract class Table2 {
+abstract class Norma {
 	public static $db;
 	// You should declare:
 	/*
-	public static $numeric = array();
-	public static $text = array();
+	public static $aliases = array();
 	public static $keys = array();
 	public static $pk = '';
 	public static $relationships = array();
 	public static $proxy = array();
 	*/
 	
-
-	protected $aliases = array();
-	protected $primaryKeyValue;
+	//protected $className;
 	protected $changed = array();
-	protected $properties = array(); // holds local field values
-	protected $relationCache = array();
+	// This is where all of the database data lives
+	protected $data = array();
 
-	public function __construct() {
-		if (!sizeof($this->aliases)) { // Merge type arrays into this
-			$this->aliases = self::$numeric + self::$text;
-		}
+	public function __construct($data = array()) {
+		//$this->className = get_class($this);
+		if ($data) $this->data = $data; // merge in data
 	}
 
 	public function __get($prop) {
@@ -46,8 +50,8 @@ abstract class Table2 {
 		Needs thinking.
 		*/
 		// Foreign alias?
-		if (array_key_exists($prop, self::$foreignAliases)) {
-			$data = self::$foreignAliases[ $prop ];
+		if (array_key_exists($prop, static::$foreignAliases)) {
+			$data = static::$foreignAliases[ $prop ];
 			$localAlias = $data[0];
 			$foreignAlias = $data[1];
 			// Go through our existing means for pulling and caching relations,
@@ -55,42 +59,60 @@ abstract class Table2 {
 			$a = $this->$localAlias;
 			return $a->$foreignAlias;
 		}
-		// Relationsihp
-		if (array_key_exists($prop, self::$relationships)) {
-			if (array_key_exists($prop, $this->relationCache)) {
-				return $this->relationCache[ $prop ];
+		// Relationship
+		if (array_key_exists($prop, static::$relationships)) {
+			if (array_key_exists($prop, $this->data)) { // something's in the cache with this name
+				$value = $this->data[ $prop ];
+				if (is_object($value)) return $value; // object has already been pulled and is cached
+				if (is_array($value)) { // looks like row data, but we need to return an object
+					$relation = static::$relationships[ $prop ];
+					$className = $relation[0];
+					$a = new $className($value);
+					$this->data[ $prop ] = $a;
+					return $a;
+				}
+				// uhhh
+			} else {
+				$relation = static::$relationships[ $prop ];
+				$className = $relation[0];
+				$key = $relation[2];
+				$a = new $className();
+				// load using primary key
+				$a->$key = $this->data[ $relation[1] ];
+				$this->data[ $prop ] = $a;
 			}
-			$relation = self::$relationships[ $prop ];
-			$className = $relation[0];
-			$key = $relation[2];
-			$a = new $className();
-			$a->$key = $this->properties[ $relation[1] ];
 			// Should be loaded
 			// but what if not? return false?
 			return $a;
 		}
 		// Local field?
-		if (array_key_exists($prop, $this->aliases)) {
+		if (array_key_exists($prop, static::$aliases)) {
 			// might not have been pulled, but we don't care
-			return $this->properties[$prop];
+			return $this->data[$prop];
 		}
+		return null;
 	}
 
 	public function __set($prop, $value) {
-		if ($prop == self::$pk || in_array($prop, self::$keys)) { // Open
+		if ($prop == static::$pk || in_array($prop, static::$keys)) { // Open ... MAKE SURE WE'RE NOT ALREADY LOADED or do we care?
 			// We can check memcache before generating the SQL
-			$sql = $this->MakeSql( self::$pk, $this->primaryKeyValue );
-			$row = Table2::$db->GetOne($sql);
+			$sql = $this->MakeSql( static::$pk, $value );
+			$row = Norma::$db->fetchRow($sql);
 			// success?
-			$this->primaryKeyValue = $value;
-			$this->properties = $row;
+			$this->primaryKeyValue = $value; // eh
+			$this->data = $row;
 			// memcache this row, or should DbCon be in charge of that?
 			return;
 		}
-		if (array_key_exists($prop, $this->aliases)) { // Set field value
+		if (array_key_exists($prop, static::$aliases)) { // Set field value
 			$this->changed[] = $prop; // So we can save only the fields that have changed
-			$this->properties[ $prop ] = $value;
+			$this->data[ $prop ] = $value;
 		}
+	}
+	
+	public function __toArray() {
+		// walk $data, add data from relationCache too
+		// want this to only contain arrays and scalars, no objects
 	}
 
 	// Alphabetical
@@ -101,20 +123,22 @@ abstract class Table2 {
 	public function Delete() {
 		if (!$this->isNew && $this->GetPK()) {
 			$sql = 'DELETE FROM ' . $this->table . ' WHERE ' . $this->fields[$this->pk]->name . '=' . $this->GetPK();
-			Table2::$db->Execute($sql);
+			Norma::$db->Execute($sql);
 		}
 	}
 	
 	public function MakeSql($key, $value) {
 		$fields = array();
-		foreach ($this->aliases as $alias => $field) {
+		foreach (static::$aliases as $alias => $field) {
 			$fields[] = '`' . $field . '`' . ($alias != $field ? ' AS `' . $alias . '`' : '');
 		}
 		$sql = 'SELECT ' . implode(', ', $fields);
 		// FROM
-		$sql .= ' FROM ' . self::$table;
+		$sql .= ' FROM ' . static::$table;
 		$sql .= ' WHERE ';
-		$sql .= '`' . $key . '`=' . Table2::$db->Escape( $value );
+		//$sql .= '`' . $key . '`=' . Norma::$db->Escape( $value );
+		$sql .= '`' . $key . '`=' . $value;
+		echo $sql . "\n";
 		return $sql;	
 	}
 	
@@ -122,15 +146,15 @@ abstract class Table2 {
 		$changed = array_unique($this->changed);
 		// remove $pk from changed
 		$sql = 'INSERT ';
-		$sql .= ' INTO `' . self::$table . '` (';
+		$sql .= ' INTO `' . static::$table . '` (';
 		$fields = array();
 		foreach ($this->changed as $field) {
-			$fields[] = '`' . $this->aliases[ $field ] . '`';	
+			$fields[] = '`' . static::$aliases[ $field ] . '`';	
 		}
 		$sql .= implode(', ', $fields);
 		$sql .= ') VALUES (';
 		foreach ($this->changed as $field) {
-			$fields[] =Table2::$db->Escape($this->properties[ $field ]);
+			$fields[] = Norma::$db->Escape($this->data[ $field ]);
 		}
 		$sql .= implode(', ', $fields);
 		$sql .= ')';	
@@ -151,18 +175,18 @@ abstract class Table2 {
 				throw new Exception("Could not save. $sql " . $this->db->LastError());
 			}
 		*/
-		if (!$this->properties[ self::$pk ]) return false;
-		$sql = 'UPDATE `' . self::$table . '` SET ';
+		if (!$this->data[ static::$pk ]) return false;
+		$sql = 'UPDATE `' . static::$table . '` SET ';
 		$changed = $this->changed;
 		// remove pk
 		$fields = array();
 		foreach ($changed as $field) {
-			$fields[] = '`' . $field . '`=' . Table2::$db->escape( $this->properties[ $field ] );
+			$fields[] = '`' . $field . '`=' . Norma::$db->escape( $this->data[ $field ] );
 		}
 		$sql .= implode(', ', $fields);
-		$sql .= ' WHERE ' . self::$pk . '=' . Table2::$db->escape( $this->properties[ self::$pk ] );
+		$sql .= ' WHERE ' . static::$pk . '=' . Norma::$db->escape( $this->data[ static::$pk ] );
 		//echo $sql;
-		return Table2::$db->Execute($sql, $this->table);
+		return Norma::$db->Execute($sql, $this->table);
 	}
 	
 	/*
@@ -187,11 +211,11 @@ abstract class Table2 {
 	*/
 	
 	public function Escape($prop, $allownull=false) {
-		return $this->db->Escape($this->properties[$prop], $allownull);
+		return $this->db->Escape($this->data[$prop], $allownull);
 	}
 /*	
 	public function Clear() {
-		$this->properties = array();
+		$this->data = array();
 		$this->old = array();
 	}
 	
@@ -214,7 +238,7 @@ abstract class Table2 {
 
 */
 	public function ToArray() {
-		return $this->properties;
+		return $this->data;
 	}
 }
 
