@@ -170,19 +170,6 @@ abstract class Norma {
 	}
 	
 	public function Save($allownull=false) {
-		/*
-		if ($this->isNew && !$this->GetPK()) {
-			$sql = $this->MakeInsertSql($allownull);
-			if ($this->db->Execute($sql, $this->table)) {
-				if ($this->isBulk) {
-					$this->SetPK($this->db->InsertID(), false);
-				} else {
-					$this->SetPK($this->db->InsertID());
-				}
-			} else {
-				throw new Exception("Could not save. $sql " . $this->db->LastError());
-			}
-		*/
 		if (!$this->data[ static::$pk ]) return false;
 		$sql = 'UPDATE `' . static::$table . '` SET ';
 		$changed = $this->changed;
@@ -216,100 +203,5 @@ abstract class Norma {
 			return false;	
 		}
 	}
-	*/
-	
-	public function Escape($prop, $allownull=false) {
-		return $this->db->Escape($this->data[$prop], $allownull);
-	}
-/*	
-	public function Clear() {
-		$this->data = array();
-		$this->old = array();
-	}
-	
-	public function SetPKField($displayname, $name, $type, $length=null, $as=null, $default=null) {
-		$field = new Field($displayname, $name, $type, $length, $as, $default, false, null);
-		$field->unique = true;
-		$field->primary = true;
-		$this->unique[] = $field->as;
-		$this->pk = $field->as;
-		$this->fields[$field->as] = $field;
-		return $field;
-	}
-	
-	private function clean($str) {
-		$str = str_replace("&", "&amp;", $str);
-		$str = str_replace("<", "&lt;", $str);
-		$str = str_replace(">", "&gt;", $str);
-		return  stripslashes($str);	
-	}
-
-*/
-	public function ToArray() {
-		return $this->data;
-	}
+	*/	
 }
-
-class Field {
-	
-	public $displayname;
-	public $name;
-	public $as;
-	public $type;
-	public $minlength = null;
-	public $maxlength;
-	public $enum;
-	public $null;
-	public $allownull;
-	public $default;
-	public $unique = false;
-	public $primary = false;
-	public $api_visible = true;
-	
-	function __construct($displayname, $name, $type, $length=null, $as=null, $default=null, $allownull=false, $enum=null) {
-		$this->displayname = $displayname;
-		$this->name = $name;
-		$this->type = $type;
-		$this->maxlength = $length;
-		if ($as == null) $this->as = $name;
-		else $this->as = $as;
-		$this->enum = $enum;
-		if ($allownull) {
-			$this->allownull = true;
-			$this->default = $default;
-		} else {
-			$this->allownull = 	false;
-			if ($default == null) {
-				if ($type == 'string') $default = '';
-				elseif ($type == 'integer') $default = 0;
-				elseif ($type == 'double') $default = 0;
-				elseif ($type == 'float') $default = 0;
-				elseif ($type == 'currency') $default = 0;
-				elseif ($type == 'boolean') $default = 0;
-				elseif ($type == 'enum') $default = $enum[0]->key;
-				elseif ($type == 'date') $default = '0000-00-00';
-				elseif ($type == 'datetime') $default = '0000-00-00 00:00:00';
-				else $default = '';
-			} else {
-				$this->default = $default;	
-			}
-		}
-	}
-	
-	
-}
-
-class CustomField {
-	
-	public $displayname;
-	public $name;
-	public $as;
-	
-	function __construct($displayname, $name, $as) {
-		$this->displayname = $displayname;
-		$this->name = $name;
-		$this->as = $name;
-	}
-	
-}
-
