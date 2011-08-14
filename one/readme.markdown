@@ -3,8 +3,10 @@ Features
 
 * Declare fields and relations as static variables of Norma-derived classes (see unit-tests)
 * No joins are used
+* Set / get fields: $articleInstance->Title = 'New title';
 * Create() and Save()
 * Lazy loading of related records
+* Chain through to a related object: $articleInstance->Author->Address->State
 * Can create aliases to fields in related records/objects (see $foreignAliases in tests)
 * Should never go over 200 lines
 
