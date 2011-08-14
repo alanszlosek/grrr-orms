@@ -22,6 +22,9 @@ NEW GOALS
 - escaping properly
 - quoting properly
 
+- make it easy to cache ... preferrably a whole tree of objects that have been used for a request
+	- __toArray() returns this structure that can be used by future instances
+
 */
 
 abstract class Norma {
@@ -115,9 +118,11 @@ abstract class Norma {
 		}
 	}
 	
-	public function __toArray() {
+	// really should build offbase array classes so casting works
+	public function toArray() {
 		// walk $data, add data from relationCache too
 		// want this to only contain arrays and scalars, no objects
+		return $this->data;
 	}
 
 	// Alphabetical
@@ -165,7 +170,6 @@ abstract class Norma {
 		$sql .= ' WHERE ';
 		//$sql .= '`' . $key . '`=' . Norma::$db->Escape( $value );
 		$sql .= '`' . $key . '`=' . $value;
-		echo $sql . "\n";
 		return $sql;	
 	}
 	
@@ -180,7 +184,6 @@ abstract class Norma {
 		}
 		$sql .= implode(', ', $fields);
 		$sql .= ' WHERE ' . static::$aliases[ static::$pk ] . "='" . mysql_real_escape_string( $this->data[ static::$pk ] ) . "'";
-		echo $sql . "\n";
 		return Norma::$db->execute($sql, $this->table);
 	}
 	
@@ -196,7 +199,6 @@ abstract class Norma {
 		} else {
 			 $sql .= ' ' . $this->fields[$field]->name . '=' . $this->db->escape($value) . ' LIMIT 1';
 		 }
-		//echo $sql;
 		if ($id = $this->db->GetOne($sql)) {
 			return $id;	
 		} else {
