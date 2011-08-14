@@ -2,14 +2,6 @@
 
 /*
 
-- lazily loads relations
-- no joins
-- define fields with aliases in a static structure
-- define relationships to other class names by field
-- can do type conversion
-- validation
-- caching behavior defined at static class level, integrates with memcache
-
 NEW GOALS
 - caches all data pulled from DB in $this->data
 - when you request an object from data that is actually the name of a relation, it'll instantiate the appropriate class for you
@@ -35,16 +27,15 @@ abstract class Norma {
 	public static $keys = array();
 	public static $pk = '';
 	public static $relationships = array();
-	public static $proxy = array();
+	public static $foreignAliases = array();
 	*/
 	
-	//protected $className;
+	// so we only update fields that have changed
 	protected $changed = array();
 	// This is where all of the database data lives
 	protected $data = array();
 
 	public function __construct($data = array()) {
-		//$this->className = get_class($this);
 		if ($data) $this->data = $data; // merge in data
 	}
 
@@ -147,19 +138,16 @@ abstract class Norma {
 		return Norma::$db->execute($sql, $this->table);
 	}
 	
+	/*
 	public function Delete() {
 		if (!$this->isNew && $this->GetPK()) {
 			$sql = 'DELETE FROM ' . $this->table . ' WHERE ' . $this->fields[$this->pk]->name . '=' . $this->GetPK();
 			Norma::$db->Execute($sql);
 		}
 	}
-	/*	
-	public function Escape($value) {
-		return Norma::$db->_escape
-	}
 	*/
 	
-	public function MakeSql($key, $value) {
+	protected function MakeSql($key, $value) {
 		$fields = array();
 		foreach (static::$aliases as $alias => $field) {
 			$fields[] = '`' . $field . '`' . ($alias != $field ? ' AS `' . $alias . '`' : '');
@@ -186,24 +174,4 @@ abstract class Norma {
 		$sql .= ' WHERE ' . static::$aliases[ static::$pk ] . "='" . mysql_real_escape_string( $this->data[ static::$pk ] ) . "'";
 		return Norma::$db->execute($sql, $this->table);
 	}
-	
-	/*
-	public function Exists($field, $value) {
-		$sql = 'SELECT ' . $this->fields[$this->pk]->name . ' FROM ' . $this->table . ' WHERE';
-		if (is_array($field)) {
-			for ($i=0; $i < count($field); $i++) {
-				$sql .= ' ' . $this->fields[$field[$i]]->name . '=' . $this->db->escape($value[$i]) . ' AND ';	
-			}
-			$sql = substr($sql, 0, strlen($sql) - 5);
-			$sql .= ' LIMIT 1';
-		} else {
-			 $sql .= ' ' . $this->fields[$field]->name . '=' . $this->db->escape($value) . ' LIMIT 1';
-		 }
-		if ($id = $this->db->GetOne($sql)) {
-			return $id;	
-		} else {
-			return false;	
-		}
-	}
-	*/	
 }
