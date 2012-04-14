@@ -95,7 +95,7 @@ abstract class Norma {
 	public function __set($prop, $value) {
 		if ($prop == static::$pk || in_array($prop, static::$keys)) { // Open ... MAKE SURE WE'RE NOT ALREADY LOADED or do we care?
 			// We can check memcache before generating the SQL
-			$sql = $this->MakeSql( static::$pk, $value );
+			$sql = $this->MakeSql( $prop, $value );
 			$row = Norma::$db->fetchRow($sql);
 			// success?
 			$this->primaryKeyValue = $value; // eh
@@ -117,25 +117,26 @@ abstract class Norma {
 	}
 
 	// Alphabetical
-	public function Create() {
+	protected function ChangedData() {
 		$changed = array_unique($this->changed);
 		// remove $pk from changed
+		$data = array();
+		foreach ($this->changed as $field) {
+			$data[ static::$aliases[ $field ] ] = $this->data[ $field ];
+		}
+		return $data;
+	}
+	
+	public function Create() {
+		/*
 		$sql = 'INSERT ';
 		$sql .= ' INTO `' . static::$table . '` (';
-		$fields = array();
-		foreach ($this->changed as $field) {
-			$fields[] = '`' . static::$aliases[ $field ] . '`';	
-		}
 		$sql .= implode(', ', $fields);
-		$sql .= ') VALUES (';
-		$fields = array();
-		foreach ($this->changed as $field) {
-			$fields[] = "'" . mysql_real_escape_string($this->data[ $field ]) . "'";
-		}
-		$sql .= implode(', ', $fields);
-		$sql .= ')';	
-		return $sql;
-		return Norma::$db->execute($sql, $this->table);
+		$sql .= ') VALUES (' . implode(',', $places) . ')';
+		*/
+		$data = $this->ChangedData();
+		$id = Norma::$db->insert($data, static::$table);
+		return $id;
 	}
 	
 	/*
@@ -162,6 +163,11 @@ abstract class Norma {
 	}
 	
 	public function Save($allownull=false) {
+		$data = $this->ChangedData();
+		$a = Norma::$db->update($data, static::$table, static::$aliases[ static::$pk ], $this->data[ static::$pk ]);
+		
+		return $a;
+		
 		if (!$this->data[ static::$pk ]) return false;
 		$sql = 'UPDATE `' . static::$table . '` SET ';
 		$changed = $this->changed;
