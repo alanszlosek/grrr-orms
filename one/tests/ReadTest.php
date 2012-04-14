@@ -30,6 +30,7 @@ class Article extends Norma {
 
 	// any other constructs that might make this more bearable? or automatic?
 	protected static $relationships = array(
+		// Alias => array(Table, LocalField, RemoteField
 		'CoverImage' => array('File', 'CoverID', 'ID'),
 		'Thumbnail' => array('File', 'ThumbnailID', 'ID')
 	);
@@ -67,12 +68,17 @@ class ReadTest extends PHPUnit_Framework_TestCase {
 	public static function setUpBeforeClass() {
 		global $db;
 		$sql = array();
-		$sql[] = 'drop table article';
-		$sql[] = 'drop table file';
-		$sql[] = 'create table article (id int(11) auto_increment, title varchar(255), body text, cover_id int(11), thumbnail_id int(11), primary key (id))';
-		$sql[] = 'create table file (id int(11) auto_increment, name varchar(255), primary key (id))';
-		$sql[] = "insert into file (name) value('article-thumb.jpg')";
-		$sql[] = "insert into file (name) value('article-cover.jpg')";
+		$sql[] = 'drop table if exists article';
+		$sql[] = 'drop table if exists file';
+		if ($db instanceof dbFacile_pdo_sqlite) {
+			$sql[] = 'create table article (id integer primary key autoincrement, title text, body text, cover_id integer, thumbnail_id integer)';
+			$sql[] = 'create table file (id integer primary key autoincrement, name text)';
+		} else {
+			$sql[] = 'create table article (id integer primary key autoincrement, title varchar(255), body text, cover_id int(11), thumbnail_id int(11))';
+			$sql[] = 'create table file (id integer primary key autoincrement, name varchar(255))';
+		}
+		$sql[] = "insert into file (name) values('article-thumb.jpg')";
+		$sql[] = "insert into file (name) values('article-cover.jpg')";
 		$sql[] = "insert into article (title, cover_id, thumbnail_id) values('test article', 2, 1)";
 		foreach ($sql as $s) $db->execute( $s );
 	}
@@ -90,7 +96,9 @@ class ReadTest extends PHPUnit_Framework_TestCase {
 		$a->ID = 1;
 		$b = $a->toArray();
 		$this->assertEquals($data, $b);
+		//$this->assertEquals(1,1);
 	}
+
 	public function testRelation() {
 		$a = new Article();
 		$a->ID = 1;
@@ -106,6 +114,7 @@ class ReadTest extends PHPUnit_Framework_TestCase {
 		$a = new Article();
 		$a->ID = 1;
 		$this->assertEquals($a->CoverFileName, 'article-cover.jpg');
+		$this->assertEquals($a->CoverImage->ID, 2);
 	}
 	public function testRelationCaching() {
 		// make sure the array contains the related objects too, although this will change in the future ...
@@ -142,7 +151,10 @@ class ReadTest extends PHPUnit_Framework_TestCase {
 	}
 }
 
-$db = dbFacile::open('mysql', 'norma', 'norma', 'norma');
+//$db = dbFacile::open('mysql', 'norma', 'norma', 'norma');
+unlink('out.log');
+$db = dbFacile::open('sqlite3', './norma.sqlite');
+$db->logToFile('out.log');
 Norma::$db = $db;
 
 
