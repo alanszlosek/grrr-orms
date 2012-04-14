@@ -157,7 +157,7 @@ abstract class Norma {
 		$sql .= ' FROM ' . static::$table;
 		$sql .= ' WHERE ';
 		//$sql .= '`' . $key . '`=' . Norma::$db->Escape( $value );
-		$sql .= '`' . $key . '`=' . $value;
+		$sql .= '`' . static::$aliases[ $key ] . '`=' . $value;
 		return $sql;	
 	}
 	
