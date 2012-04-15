@@ -20,7 +20,7 @@ NEW GOALS
 */
 
 abstract class Norma {
-	public static $db;
+	public static $dbFacile;
 	// You should declare:
 	/*
 	public static $aliases = array();
@@ -96,7 +96,7 @@ abstract class Norma {
 		if ($prop == static::$pk || in_array($prop, static::$keys)) { // Open ... MAKE SURE WE'RE NOT ALREADY LOADED or do we care?
 			// We can check memcache before generating the SQL
 			$sql = $this->MakeSql( $prop, $value );
-			$row = Norma::$db->fetchRow($sql);
+			$row = Norma::$dbFacile->fetchRow($sql);
 			// success?
 			$this->primaryKeyValue = $value; // eh
 			$this->data = $row;
@@ -135,7 +135,7 @@ abstract class Norma {
 		$sql .= ') VALUES (' . implode(',', $places) . ')';
 		*/
 		$data = $this->ChangedData();
-		$id = Norma::$db->insert($data, static::$table);
+		$id = Norma::$dbFacile->insert($data, static::$table);
 		return $id;
 	}
 	
@@ -143,7 +143,7 @@ abstract class Norma {
 	public function Delete() {
 		if (!$this->isNew && $this->GetPK()) {
 			$sql = 'DELETE FROM ' . $this->table . ' WHERE ' . $this->fields[$this->pk]->name . '=' . $this->GetPK();
-			Norma::$db->Execute($sql);
+			Norma::$dbFacile->Execute($sql);
 		}
 	}
 	*/
@@ -157,14 +157,14 @@ abstract class Norma {
 		// FROM
 		$sql .= ' FROM ' . static::$table;
 		$sql .= ' WHERE ';
-		//$sql .= '`' . $key . '`=' . Norma::$db->Escape( $value );
+		//$sql .= '`' . $key . '`=' . Norma::$dbFacile->Escape( $value );
 		$sql .= '`' . static::$aliases[ $key ] . '`=' . $value;
 		return $sql;	
 	}
 	
 	public function Save($allownull=false) {
 		$data = $this->ChangedData();
-		$a = Norma::$db->update($data, static::$table, static::$aliases[ static::$pk ], $this->data[ static::$pk ]);
+		$a = Norma::$dbFacile->update($data, static::$table, static::$aliases[ static::$pk ], $this->data[ static::$pk ]);
 		
 		return $a;
 		
@@ -178,6 +178,6 @@ abstract class Norma {
 		}
 		$sql .= implode(', ', $fields);
 		$sql .= ' WHERE ' . static::$aliases[ static::$pk ] . "='" . mysql_real_escape_string( $this->data[ static::$pk ] ) . "'";
-		return Norma::$db->execute($sql, $this->table);
+		return Norma::$dbFacile->execute($sql, $this->table);
 	}
 }

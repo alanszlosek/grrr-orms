@@ -14,6 +14,7 @@ insert into article (title, cover_id, thumbnail_id) values('test article', 2, 1)
 class Article extends Norma {
 	protected static $table = 'article';
 	protected static $pk = 'ID';
+	// can load by PK, or these keys
 	protected static $keys = array(); // if we wanted to load by other fields
 	// not called $fields to suggest the alias should come first in the mapping
 	protected static $aliases = array(
@@ -41,6 +42,12 @@ class Article extends Norma {
 	);
 }
 
+class Article2 extends Article {
+	public function Title() {
+		return $this->Title;
+	}
+}
+
 class File extends Norma {
 	protected static $table = 'file';
 	protected static $pk = 'ID';
@@ -66,17 +73,12 @@ class Log {
 
 class ReadTest extends PHPUnit_Framework_TestCase {
 	public static function setUpBeforeClass() {
-		global $db;
+		$db = Norma::$dbFacile;
 		$sql = array();
 		$sql[] = 'drop table if exists article';
 		$sql[] = 'drop table if exists file';
-		if ($db instanceof dbFacile_pdo_sqlite) {
-			$sql[] = 'create table article (id integer primary key autoincrement, title text, body text, cover_id integer, thumbnail_id integer)';
-			$sql[] = 'create table file (id integer primary key autoincrement, name text)';
-		} else {
-			$sql[] = 'create table article (id integer primary key autoincrement, title varchar(255), body text, cover_id int(11), thumbnail_id int(11))';
-			$sql[] = 'create table file (id integer primary key autoincrement, name varchar(255))';
-		}
+		$sql[] = 'create table article (id integer primary key autoincrement, title varchar(255), body text, cover_id int(11), thumbnail_id int(11))';
+		$sql[] = 'create table file (id integer primary key autoincrement, name varchar(255))';
 		$sql[] = "insert into file (name) values('article-thumb.jpg')";
 		$sql[] = "insert into file (name) values('article-cover.jpg')";
 		$sql[] = "insert into article (title, cover_id, thumbnail_id) values('test article', 2, 1)";
@@ -149,13 +151,27 @@ class ReadTest extends PHPUnit_Framework_TestCase {
 		);
 		$this->assertEquals($data, $cover);
 	}
+
+	public function testExtending() {
+		$data = array(
+			'ID' => 1,
+			'Title' => 'test article',
+			'Body' => '',
+			'ThumbnailID' => 1,
+			'CoverID' => 2
+		);
+		$a = new Article2();
+		$a->ID = 1;
+		$this->assertEquals($a->Title(), $data['Title']);
+		//$this->assertEquals(1,1);
+	}
 }
 
 //$db = dbFacile::open('mysql', 'norma', 'norma', 'norma');
 unlink('out.log');
 $db = dbFacile::open('sqlite3', './norma.sqlite');
 $db->logToFile('out.log');
-Norma::$db = $db;
+Norma::$dbFacile = $db;
 
 
 /*
