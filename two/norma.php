@@ -32,14 +32,14 @@ abstract class Norma {
 	
 	// so we only update fields that have changed
 	protected $changed = array();
-	// This is where all of the database data lives
+	// This is where all of the database data lives ... ORIGINAL FIELD NAMES, NOT ALIASES
 	protected $data = array();
 
 	public function __construct($data = array()) {
 		if ($data) $this->data = $data; // merge in data
 	}
 
-	public function __get($prop) {
+	public function __get($name) {
 		/*
 		Perhaps order should be:
 		- check $this->cache
@@ -49,8 +49,8 @@ abstract class Norma {
 		Needs thinking.
 		*/
 		// Foreign alias?
-		if (array_key_exists($prop, static::$foreignAliases)) {
-			$data = static::$foreignAliases[ $prop ];
+		if (array_key_exists($name, static::$foreignAliases)) {
+			$data = static::$foreignAliases[ $name ];
 			$localAlias = $data[0];
 			$foreignAlias = $data[1];
 			// Go through our existing means for pulling and caching relations,
@@ -59,43 +59,43 @@ abstract class Norma {
 			return $a->$foreignAlias;
 		}
 		// Relationship
-		if (array_key_exists($prop, static::$relationships)) {
-			if (array_key_exists($prop, $this->data)) { // something's in the cache with this name
-				$value = $this->data[ $prop ];
+		if (array_key_exists($name, static::$relationships)) {
+			if (array_key_exists($name, $this->data)) { // something's in the cache with this name
+				$value = $this->data[ $name ];
 				if (is_object($value)) return $value; // object has already been pulled and is cached
 				if (is_array($value)) { // looks like row data, but we need to return an object
-					$relation = static::$relationships[ $prop ];
+					$relation = static::$relationships[ $name ];
 					$className = $relation[1];
 					$a = new $className($value);
-					$this->data[ $prop ] = $a;
+					$this->data[ $name ] = $a;
 					return $a;
 				}
 				// uhhh
 			} else {
-				$relation = static::$relationships[ $prop ];
+				$relation = static::$relationships[ $name ];
 				$className = $relation[1];
 				$key = $relation[2];
 				$a = new $className();
 				// load using primary key
-				$a->$key = $this->data[ $relation[0] ];
-				$this->data[ $prop ] = $a;
+				$a->$key = $this->data[ static::$aliases[ $relation[0] ] ];
+				$this->data[ $name ] = $a;
 			}
 			// Should be loaded
 			// but what if not? return false?
 			return $a;
 		}
 		// Local field?
-		if (array_key_exists($prop, static::$aliases)) {
+		if (array_key_exists($name, static::$aliases)) {
 			// might not have been pulled, but we don't care
-			return $this->data[$prop];
+			return $this->data[ static::$aliases[ $name ] ];
 		}
 		return null;
 	}
 
-	public function __set($prop, $value) {
-		if ($prop == static::$pk || in_array($prop, static::$keys)) { // Open ... MAKE SURE WE'RE NOT ALREADY LOADED or do we care?
+	public function __set($name, $value) {
+		if ($name == static::$pk || in_array($name, static::$keys)) { // Open ... MAKE SURE WE'RE NOT ALREADY LOADED or do we care?
 			// We can check memcache before generating the SQL
-			$sql = $this->MakeSql( $prop, $value );
+			$sql = $this->MakeSql($name, $value);
 			$row = Norma::$dbFacile->fetchRow($sql);
 			// success?
 			$this->primaryKeyValue = $value; // eh
@@ -103,9 +103,10 @@ abstract class Norma {
 			// memcache this row, or should DbCon be in charge of that?
 			return;
 		}
-		if (array_key_exists($prop, static::$aliases)) { // Set field value
-			$this->changed[] = $prop; // So we can save only the fields that have changed
-			$this->data[ $prop ] = $value;
+		if (array_key_exists($name, static::$aliases)) { // Set field value
+			$field = static::$aliases[ $name ];
+			$this->changed[] = $field; // So we can save only the fields that have changed
+			$this->data[ $field ] = $value;
 		}
 	}
 
@@ -126,7 +127,7 @@ abstract class Norma {
 				// Get foreign field name from foreign class
 				$className::$aliases[ $relationship[2] ],
 				// Value from local object
-				$this->data[ $relationship[0] ]
+				$this->data[ static::$aliases[ $relationship[0] ] ]
 				/*
 				static::$table,
 				// Get local field name
@@ -151,7 +152,19 @@ abstract class Norma {
 	public function toArray() {
 		// walk $data, add data from relationCache too
 		// want this to only contain arrays and scalars, no objects
-		return $this->data;
+
+		// Maps these values to aliases?
+		// Should this return related?
+		$data = array();
+		foreach ($this->data as $key => $value) {
+			// Normal field data is NOT stored by alias
+			$alias = array_search($key, static::$aliases);
+			if ($alias !== false) {
+				$data[ $alias ] = $value;
+			} elseif (array_key_exists($key, static::$relationships))
+				$data[ $key ] = $value;
+		}
+		return $data;
 	}
 
 	// Alphabetical
@@ -187,13 +200,15 @@ abstract class Norma {
 	*/
 	
 	protected function MakeSql($key, $value) {
+		/*
 		$fields = array();
 		foreach (static::$aliases as $alias => $field) {
 			$fields[] = '`' . $field . '`' . ($alias != $field ? ' AS `' . $alias . '`' : '');
 		}
 		$sql = 'SELECT ' . implode(', ', $fields);
-		// FROM
-		$sql .= ' FROM ' . static::$table;
+		*/
+		// To hell with doing field mappings in the SQL ... makes it hard to write custom queries and benefit from ORM
+		$sql = 'SELECT * FROM ' . static::$table;
 		$sql .= ' WHERE ';
 		//$sql .= '`' . $key . '`=' . Norma::$dbFacile->Escape( $value );
 		$sql .= '`' . static::$aliases[ $key ] . '`=' . $value;
@@ -242,9 +257,7 @@ class NormaChain {
 			
 		);
 		array_push($this->where, $r);
-
-		$this->className = $name;
-		// mergin where items
+		$this->className = $className2;
 		return $this;
 	}
 
@@ -252,6 +265,7 @@ class NormaChain {
 		$className = $this->className;
 		$table = $className::$table;
 
+		// What a pain to have to do field aliases in the SQL. ugh
 		$parameters = array();
 		// backtick these values
 		$sql = 'SELECT ' . $table . '.* from ' . $table;
@@ -259,24 +273,12 @@ class NormaChain {
 		$fin = array_shift($this->where); // last where will be part of where clause
 
 		foreach ($this->where as $where) {
-			/*
-			if (sizeof($where) == 3) {
-				$sql .= ' LEFT JOIN ' . $where[0] . ' ON ('
-					. $where[0] . '.' . $where[1]
-					. '=?'
-					. ')';
-				$parameters[] = $where[2];
-			}
-			*/
-			if (sizeof($where) == 4) {
-				$sql .= ' LEFT JOIN ' . $where[0] . ' ON ('
-					. $where[0] . '.' . $where[1]
-					. '='
-					. $where[2] . '.' . $where[3]
-					. ')';
-			}
+			$sql .= ' LEFT JOIN ' . $where[0] . ' ON ('
+				. $where[0] . '.' . $where[1]
+				. '='
+				. $where[2] . '.' . $where[3]
+				. ')';
 		}
-
 		$sql .= ' WHERE ' . $fin[0] . '.' . $fin[1] . '=?';
 		$parameters[] = $fin[2];
 
