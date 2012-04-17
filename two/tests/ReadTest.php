@@ -32,8 +32,8 @@ class Article extends Norma {
 	// any other constructs that might make this more bearable? or automatic?
 	protected static $relationships = array(
 		// Alias => array(Table, LocalField, RemoteField
-		'CoverImage' => array('File', 'CoverID', 'ID'),
-		'Thumbnail' => array('File', 'ThumbnailID', 'ID')
+		'CoverImage' => array('CoverID', 'File', 'ID'),
+		'Thumbnail' => array('ThumbnailID', 'File', 'ID')
 	);
 
 	// through a relationship defined above
@@ -167,10 +167,8 @@ class ReadTest extends PHPUnit_Framework_TestCase {
 	}
 }
 
-//$db = dbFacile::open('mysql', 'norma', 'norma', 'norma');
-unlink('out.log');
 $db = new dbFacile_sqlite3();
-$db->open('./norma.sqlite');
+$db->open('./norma1.sqlite');
 //$db->logToFile('out.log');
 Norma::$dbFacile = $db;
 

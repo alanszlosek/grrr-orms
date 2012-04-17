@@ -84,7 +84,7 @@ class Log {
 
 
 
-class ReadTest extends PHPUnit_Framework_TestCase {
+class ChainingTest extends PHPUnit_Framework_TestCase {
 	public static function setUpBeforeClass() {
 		$db = Norma::$dbFacile;
 		$sql = array();
