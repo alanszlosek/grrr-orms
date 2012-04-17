@@ -1,6 +1,6 @@
 <?php
 include('../norma.php');
-include('/home/alan/coding/projects/dbFacile/dbFacile.php');
+include('/home/alan/coding/projects/dbFacile/src/dbFacile_sqlite3.php');
 
 /*
 create table article (id int(11) auto_increment, title varchar(255), body text, cover_id int(11), thumbnail_id int(11), primary key (id));
@@ -169,8 +169,9 @@ class ReadTest extends PHPUnit_Framework_TestCase {
 
 //$db = dbFacile::open('mysql', 'norma', 'norma', 'norma');
 unlink('out.log');
-$db = dbFacile::open('sqlite3', './norma.sqlite');
-$db->logToFile('out.log');
+$db = new dbFacile_sqlite3();
+$db->open('./norma.sqlite');
+//$db->logToFile('out.log');
 Norma::$dbFacile = $db;
 
 
