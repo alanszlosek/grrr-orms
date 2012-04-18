@@ -1,16 +1,12 @@
-testing chaining through relationships, returning an array of objects ... and using joins
-
 Features
 ====
 
-* Declare fields and relations as static variables of Norma-derived classes (see unit-tests)
-* No joins are used
+* Declare fields and relations as static variables of Norma-derived classes (see tests folder for test examples)
 * Set / get fields: $articleInstance->Title = 'New title';
 * Create() and Save()
-* Lazy loading of related records
 * Chain through to a related object: $articleInstance->Author->Address->State
+* NEW: Chaining to get an array of related objects (uses joins)
 * Can create aliases to fields in related records/objects (see $foreignAliases in tests)
-* Should never go over 200 lines
 
 Goals
 ====
@@ -20,7 +16,7 @@ Want toArray() to return a nested associative array of the current object's data
 Dependencies
 ====
 
-* dbFacile so we're not tied to 1 dbms
+* dbFacile (one of my projects)
 
 Unfinished
 ====
