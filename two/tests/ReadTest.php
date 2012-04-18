@@ -2,6 +2,10 @@
 require('setup.php');
 
 class ReadTest extends TestSetup {
+	public function testNotFound() {
+		$u = User::ID(99);
+		$this->assertNull($u);
+	}
 	public function testCreate() {
 		$u = new User();
 		$u->Name = 'Woowoo';
