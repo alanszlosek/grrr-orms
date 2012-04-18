@@ -22,21 +22,25 @@ NEW GOALS
 abstract class Norma {
 	public static $dbFacile;
 	// You should declare:
-	/*
 	public static $aliases = array();
 	public static $keys = array();
-	public static $pk = '';
+	public static $pk = 'ID';
 	public static $relationships = array();
 	public static $foreignAliases = array();
-	*/
 	
-	// so we only update fields that have changed
+	// So we only include fields that have changed in UPDATE sql
 	protected $changed = array();
 	// This is where all of the database data lives ... ORIGINAL FIELD NAMES, NOT ALIASES
 	protected $data = array();
 
-	public function __construct($data = array()) {
-		if ($data) $this->data = $data; // merge in data
+	public function __construct($data = null) {
+		if ($data) {
+			if (is_array($data)) {
+				$this->data = $data; // merge in data
+			} else {
+				return null;
+			}
+		}
 	}
 
 	public function __get($name) {
@@ -95,12 +99,14 @@ abstract class Norma {
 	public function __set($name, $value) {
 		if ($name == static::$pk || in_array($name, static::$keys)) { // Open ... MAKE SURE WE'RE NOT ALREADY LOADED or do we care?
 			// We can check memcache before generating the SQL
-			$sql = $this->MakeSql($name, $value);
+			$sql = static::MakeSql($name, $value);
 			$row = Norma::$dbFacile->fetchRow($sql);
-			// success?
-			$this->primaryKeyValue = $value; // eh
+			if (!$row) {
+				// throw exception?
+				throw new Exception('Damnit');
+				return null;
+			}
 			$this->data = $row;
-			// memcache this row, or should DbCon be in charge of that?
 			return;
 		}
 		if (array_key_exists($name, static::$aliases)) { // Set field value
@@ -110,15 +116,11 @@ abstract class Norma {
 		}
 	}
 
-	// $article->Author()->File()
-	// select file.* from file left join author on (author.id=file.user_id) where author.id = ?
+	// Used to access related objects via join so we can jump through to
+	// a far away related object using only 1 query
 	public function __call($name, $args) {
 		if (array_key_exists($name, static::$relationships)) {
 			$relationship = static::$relationships[ $name ];
-			/*
-			var_dump($relationship);
-			exit;
-			*/
 			$className = $relationship[1];
 			// Pass in current join fields and values
 			$where = array(
@@ -128,14 +130,7 @@ abstract class Norma {
 				$className::$aliases[ $relationship[2] ],
 				// Value from local object
 				$this->data[ static::$aliases[ $relationship[0] ] ]
-				/*
-				static::$table,
-				// Get local field name
-				static::$aliases[ $relationship[0] ],
-				*/
 			);
-			// need to pass current object and field too
-
 			/*
 			Would like where to be like this, so we can do proper quoting with dbFacile later:
 			array(
@@ -147,6 +142,19 @@ abstract class Norma {
 		}
 		return null;
 	}
+
+	public static function __callStatic($name, $args) {
+		if ($name == static::$pk || in_array($name, static::$keys)) {
+			$sql = static::MakeSql($name, $args[0]);
+			$row = Norma::$dbFacile->fetchRow($sql);
+			if (!$row) {
+				return null;
+			} else {
+				return new static($row);
+			}
+		}
+		return null;
+	}
 	
 	// really should build offbase array classes so casting works
 	public function toArray() {
@@ -154,15 +162,16 @@ abstract class Norma {
 		// want this to only contain arrays and scalars, no objects
 
 		// Maps these values to aliases?
-		// Should this return related?
 		$data = array();
 		foreach ($this->data as $key => $value) {
-			// Normal field data is NOT stored by alias
+			// Normal field data is NOT stored by alias, but we should return it as such
 			$alias = array_search($key, static::$aliases);
 			if ($alias !== false) {
 				$data[ $alias ] = $value;
-			} elseif (array_key_exists($key, static::$relationships))
+			} elseif (array_key_exists($key, static::$relationships)) {
+				// If object, use toArray() on it
 				$data[ $key ] = $value;
+			}
 		}
 		return $data;
 	}
@@ -173,65 +182,45 @@ abstract class Norma {
 		// remove $pk from changed
 		$data = array();
 		foreach ($this->changed as $field) {
-			$data[ static::$aliases[ $field ] ] = $this->data[ $field ];
+			$data[ $field ] = $this->data[ $field ];
 		}
 		return $data;
 	}
 	
 	public function Create() {
-		/*
-		$sql = 'INSERT ';
-		$sql .= ' INTO `' . static::$table . '` (';
-		$sql .= implode(', ', $fields);
-		$sql .= ') VALUES (' . implode(',', $places) . ')';
-		*/
 		$data = $this->ChangedData();
+		// Remove primary key
+		if (static::$pk) unset( $data[ static::$aliases[ static::$pk ] ] );
 		$id = Norma::$dbFacile->insert($data, static::$table);
+		if (static::$pk) $this->data[ static::$aliases[ static::$pk ] ] = $id;
+		$this->changed = array();
 		return $id;
 	}
 	
-	/*
 	public function Delete() {
-		if (!$this->isNew && $this->GetPK()) {
-			$sql = 'DELETE FROM ' . $this->table . ' WHERE ' . $this->fields[$this->pk]->name . '=' . $this->GetPK();
-			Norma::$dbFacile->Execute($sql);
-		}
+		$pk = static::$aliases[ static::$pk ];
+		$data = array(
+			$pk => $this->data[ $pk ]
+		);
+		return Norma::$dbFacile->Delete(static::$table, $data);
 	}
-	*/
 	
-	protected function MakeSql($key, $value) {
-		/*
-		$fields = array();
-		foreach (static::$aliases as $alias => $field) {
-			$fields[] = '`' . $field . '`' . ($alias != $field ? ' AS `' . $alias . '`' : '');
-		}
-		$sql = 'SELECT ' . implode(', ', $fields);
-		*/
+	protected static function MakeSql($alias, $value) {
 		// To hell with doing field mappings in the SQL ... makes it hard to write custom queries and benefit from ORM
 		$sql = 'SELECT * FROM ' . static::$table;
 		$sql .= ' WHERE ';
-		//$sql .= '`' . $key . '`=' . Norma::$dbFacile->Escape( $value );
-		$sql .= '`' . static::$aliases[ $key ] . '`=' . $value;
+		$sql .= '`' . static::$aliases[ $alias ] . '`=' . $value;
 		return $sql;	
 	}
 	
-	public function Save($allownull=false) {
+	// Torn between Create() and Update() or just Save()
+	public function Save() {
+		$pk = static::$aliases[ static::$pk ];
 		$data = $this->ChangedData();
-		$a = Norma::$dbFacile->update($data, static::$table, static::$aliases[ static::$pk ], $this->data[ static::$pk ]);
+		// new or not?
+		$a = Norma::$dbFacile->update($data, static::$table, array($pk => $this->data[ $pk ]));
 		
 		return $a;
-		
-		if (!$this->data[ static::$pk ]) return false;
-		$sql = 'UPDATE `' . static::$table . '` SET ';
-		$changed = $this->changed;
-		// remove pk
-		$fields = array();
-		foreach ($changed as $field) {
-			$fields[] = '`' . static::$aliases[ $field ] . "`='" . mysql_real_escape_string( $this->data[ $field ] ) . "'";
-		}
-		$sql .= implode(', ', $fields);
-		$sql .= ' WHERE ' . static::$aliases[ static::$pk ] . "='" . mysql_real_escape_string( $this->data[ static::$pk ] ) . "'";
-		return Norma::$dbFacile->execute($sql, $this->table);
 	}
 }
 

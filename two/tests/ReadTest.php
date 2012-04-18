@@ -1,88 +1,36 @@
 <?php
-include('../norma.php');
-include('/home/alan/coding/projects/dbFacile/src/dbFacile_sqlite3.php');
+require('setup.php');
 
-/*
-create table article (id int(11) auto_increment, title varchar(255), body text, cover_id int(11), thumbnail_id int(11), primary key (id));
-create table file (id int(11) auto_increment, name varchar(255), primary key (id));
+class ReadTest extends TestSetup {
+	public function testCreate() {
+		$u = new User();
+		$u->Name = 'Woowoo';
+		$a = $u->Create();
 
-insert into file (name) value('article-thumb.jpg');
-insert into file (name) value('article-cover.jpg');
-insert into article (title, cover_id, thumbnail_id) values('test article', 2, 1);
-*/
-
-class Article extends Norma {
-	protected static $table = 'article';
-	protected static $pk = 'ID';
-	// can load by PK, or these keys
-	protected static $keys = array(); // if we wanted to load by other fields
-	// not called $fields to suggest the alias should come first in the mapping
-	protected static $aliases = array(
-		'ID' => 'id',
-		'CoverID' => 'cover_id',
-		'ThumbnailID' => 'thumbnail_id',
-		'Title' => 'title', // varchar 100
-		'Body' => 'body'
-	);
-
-	// local alias maps to array with local field, remote table, remote field
-	// but which class to loas?
-	// use aliases or fields? ugh.
-
-	// any other constructs that might make this more bearable? or automatic?
-	protected static $relationships = array(
-		// Alias => array(Table, LocalField, RemoteField
-		'CoverImage' => array('CoverID', 'File', 'ID'),
-		'Thumbnail' => array('ThumbnailID', 'File', 'ID')
-	);
-
-	// through a relationship defined above
-	protected static $foreignAliases = array(
-		'CoverFileName' => array('CoverImage', 'Name')
-	);
-}
-
-class Article2 extends Article {
-	public function Title() {
-		return $this->Title;
+		$this->assertEquals($a, 2);
+		$this->assertEquals($u->ID, 2);
 	}
-}
 
-class File extends Norma {
-	protected static $table = 'file';
-	protected static $pk = 'ID';
-	protected static $keys = array(); // if we wanted to load by other fields
-	// not called $fields to suggest the alias should come first in the mapping
-	protected static $aliases = array(
-		'ID' => 'id',
-		'Name' => 'name'
-	);
-	protected static $relationships = array();
-	protected static $foreignAliases = array();
-}
+	public function testUpdate() {
+		$u = new User();
+		$u->ID = 2;
+		$u->Name = 'Another';
+		$a = $u->Save();
+		$this->assertEquals($a, true);
 
-class Log {
-	public static $lines = array();
-
-	public function Output() {
-		echo implode("\n", Log::$lines) . "\n";
+		$u = new User();
+		$u->ID = 2;
+		$this->assertEquals($u->Name, 'Another');
 	}
-}
 
+	public function testDelete() {
+		$u = new User();
+		$u->ID = 2;
+		$a = $u->Delete();
+		$this->assertEquals($a, true);
 
-
-class ReadTest extends PHPUnit_Framework_TestCase {
-	public static function setUpBeforeClass() {
-		$db = Norma::$dbFacile;
-		$sql = array();
-		$sql[] = 'drop table if exists article';
-		$sql[] = 'drop table if exists file';
-		$sql[] = 'create table article (id integer primary key autoincrement, title varchar(255), body text, cover_id int(11), thumbnail_id int(11))';
-		$sql[] = 'create table file (id integer primary key autoincrement, name varchar(255))';
-		$sql[] = "insert into file (name) values('article-thumb.jpg')";
-		$sql[] = "insert into file (name) values('article-cover.jpg')";
-		$sql[] = "insert into article (title, cover_id, thumbnail_id) values('test article', 2, 1)";
-		foreach ($sql as $s) $db->execute( $s );
+		$u = User::ID(2);
+		$this->assertNull($u);
 	}
 
 
@@ -92,7 +40,8 @@ class ReadTest extends PHPUnit_Framework_TestCase {
 			'Title' => 'test article',
 			'Body' => '',
 			'ThumbnailID' => 1,
-			'CoverID' => 2
+			'CoverID' => 2,
+			'AuthorID' => 1
 		);
 		$a = new Article();
 		$a->ID = 1;
@@ -108,7 +57,8 @@ class ReadTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals( get_class($thumb), 'File');
 		$data = array(
 			'ID' => 1,
-			'Name' => 'article-thumb.jpg'
+			'Name' => 'article-thumb.jpg',
+			'UserID' => 1
 		);
 		$this->assertEquals( $thumb->toArray(), $data);
 	}
@@ -130,7 +80,8 @@ class ReadTest extends PHPUnit_Framework_TestCase {
 			'Title' => 'test article',
 			'Body' => '',
 			'ThumbnailID' => 1,
-			'CoverID' => 2
+			'CoverID' => 2,
+			'AuthorID' => 1
 		);
 		$b = $a->toArray();
 		$thumb = $b['Thumbnail']->toArray();
@@ -141,13 +92,15 @@ class ReadTest extends PHPUnit_Framework_TestCase {
 		
 		$data = array(
 			'ID' => 1,
-			'Name' => 'article-thumb.jpg'
+			'Name' => 'article-thumb.jpg',
+			'UserID' => 1
 		);
 		$this->assertEquals($data, $thumb);
 
 		$data = array(
 			'ID' => 2,
-			'Name' => 'article-cover.jpg'
+			'Name' => 'article-cover.jpg',
+			'UserID' => 1
 		);
 		$this->assertEquals($data, $cover);
 	}
@@ -167,21 +120,3 @@ class ReadTest extends PHPUnit_Framework_TestCase {
 	}
 }
 
-$db = new dbFacile_sqlite3();
-$db->open('./norma1.sqlite');
-//$db->logToFile('out.log');
-Norma::$dbFacile = $db;
-
-
-/*
-$a->Body = 'body';
-$a->Save();
-var_dump($a);
-*/
-
-/*
-$a = new Article();
-$a->Title = 'new title';
-$a->Body = 'new body';
-echo $a->Create();
-*/
