@@ -33,14 +33,8 @@ abstract class Norma {
 	// This is where all of the database data lives ... ORIGINAL FIELD NAMES, NOT ALIASES
 	protected $data = array();
 
-	public function __construct($data = null) {
-		if ($data) {
-			if (is_array($data)) {
-				$this->data = $data; // merge in data
-			} else {
-				return null;
-			}
-		}
+	public function __construct($data = array()) {
+		if (is_array($data)) $this->data = $data; // merge in data
 	}
 
 	public function __get($name) {
@@ -79,9 +73,9 @@ abstract class Norma {
 				$relation = static::$relationships[ $name ];
 				$className = $relation[1];
 				$key = $relation[2];
-				$a = new $className();
+				$v = $this->data[ static::$aliases[ $relation[0] ] ];
 				// load using primary key
-				$a->$key = $this->data[ static::$aliases[ $relation[0] ] ];
+				$a = $className::$key( $v );
 				$this->data[ $name ] = $a;
 			}
 			// Should be loaded
@@ -97,18 +91,10 @@ abstract class Norma {
 	}
 
 	public function __set($name, $value) {
-		if ($name == static::$pk || in_array($name, static::$keys)) { // Open ... MAKE SURE WE'RE NOT ALREADY LOADED or do we care?
-			// We can check memcache before generating the SQL
-			$sql = static::MakeSql($name, $value);
-			$row = Norma::$dbFacile->fetchRow($sql);
-			if (!$row) {
-				// throw exception?
-				throw new Exception('Damnit');
-				return null;
-			}
-			$this->data = $row;
-			return;
-		}
+		// I don't like loading via primary/unique key using an assignment.
+		// Plus, it's hard to report "row not found" using that technique ...
+		// I didn't want to throw an exception.
+		// Article::ID(1234) is the way we load now
 		if (array_key_exists($name, static::$aliases)) { // Set field value
 			$field = static::$aliases[ $name ];
 			$this->changed[] = $field; // So we can save only the fields that have changed
@@ -143,6 +129,9 @@ abstract class Norma {
 		return null;
 	}
 
+	// So you can do: $u = User::ID(1)
+	// Loads User record with primary key of 1 from database and returns an instance of User with that data
+	// THE ONLY WAY TO LOAD A ROW FROM THE DB
 	public static function __callStatic($name, $args) {
 		if ($name == static::$pk || in_array($name, static::$keys)) {
 			$sql = static::MakeSql($name, $args[0]);
@@ -272,6 +261,7 @@ class NormaChain {
 		$parameters[] = $fin[2];
 
 		$rows = Norma::$dbFacile->fetchAll($sql, $parameters);
+		$pk = $className::$pk;
 		$out = array();
 		foreach ($rows as $row) {
 			$out[] = new $className($row);

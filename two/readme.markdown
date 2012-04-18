@@ -1,17 +1,20 @@
 Features
 ====
 
-* Declare fields and relations as static variables of Norma-derived classes (see tests folder for test examples)
-* Set / get fields: $articleInstance->Title = 'New title';
+* Declare field aliases and relations as static variables of Norma-derived classes (see tests folder for test examples)
+* Load Article 123 by: $a = Article::ID(123)
+* Set / get fields: $a->Title = 'New title';
 * Create() and Save()
-* Chain through to a related object: $articleInstance->Author->Address->State
-* NEW: Chaining to get an array of related objects (uses joins)
-* Can create aliases to fields in related records/objects (see $foreignAliases in tests)
+* Chain through to a related object: $a->Author->Address->State
+* Chain through to related objects (plural) using joins: $a->Author()->File()->Done() ... Gets all article author's files.
+* Create aliases to fields in far away objects (see $foreignAliases usage in tests)
 
 Goals
 ====
 
 Want toArray() to return a nested associative array of the current object's data, and data for related objects that have been accessed up until now. The idea is that you can cache this data in memcache.
+
+No objects are returned from toArray()
 
 Dependencies
 ====
@@ -29,5 +32,11 @@ Running the Unit Tests
 ====
 
 * Install PHPUnit (what a PITA)
-* Go into one/tests
+* Go into two/tests
 * Run: phpunit ReadTest
+* Run: phpunit ChainingTest
+
+Grrrrr
+====
+
+What a pain. I want an easy way to merge an array of data into an instantiated object ... but I also want an easy way to create and load an object using a PK or Unique key ... trying to work out both, so it's somewhat intuitive

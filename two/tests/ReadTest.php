@@ -12,20 +12,17 @@ class ReadTest extends TestSetup {
 	}
 
 	public function testUpdate() {
-		$u = new User();
-		$u->ID = 2;
+		$u = User::ID(2);
 		$u->Name = 'Another';
 		$a = $u->Save();
 		$this->assertEquals($a, true);
 
-		$u = new User();
-		$u->ID = 2;
+		$u = User::ID(2);
 		$this->assertEquals($u->Name, 'Another');
 	}
 
 	public function testDelete() {
-		$u = new User();
-		$u->ID = 2;
+		$u = User::ID(2);
 		$a = $u->Delete();
 		$this->assertEquals($a, true);
 
@@ -43,16 +40,14 @@ class ReadTest extends TestSetup {
 			'CoverID' => 2,
 			'AuthorID' => 1
 		);
-		$a = new Article();
-		$a->ID = 1;
+		$a = Article::ID(1);
 		$b = $a->toArray();
 		$this->assertEquals($data, $b);
 		//$this->assertEquals(1,1);
 	}
 
 	public function testRelation() {
-		$a = new Article();
-		$a->ID = 1;
+		$a = Article::ID(1);
 		$thumb = $a->Thumbnail;
 		$this->assertEquals( get_class($thumb), 'File');
 		$data = array(
@@ -63,16 +58,14 @@ class ReadTest extends TestSetup {
 		$this->assertEquals( $thumb->toArray(), $data);
 	}
 	public function testForeignAlias() {
-		$a = new Article();
-		$a->ID = 1;
+		$a = Article::ID(1);
 		$this->assertEquals($a->CoverFileName, 'article-cover.jpg');
 		$this->assertEquals($a->CoverImage->ID, 2);
 	}
 	public function testRelationCaching() {
 		// make sure the array contains the related objects too, although this will change in the future ...
 		// i don't want any objects returned from toArray(), just nested associative array data
-		$a = new Article();
-		$a->ID = 1;
+		$a = Article::ID(1);
 		$a->Thumbnail;
 		$a->CoverImage;
 		$data = array(
@@ -113,8 +106,7 @@ class ReadTest extends TestSetup {
 			'ThumbnailID' => 1,
 			'CoverID' => 2
 		);
-		$a = new Article2();
-		$a->ID = 1;
+		$a = Article2::ID(1);
 		$this->assertEquals($a->Title(), $data['Title']);
 		//$this->assertEquals(1,1);
 	}
