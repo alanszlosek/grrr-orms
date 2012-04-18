@@ -261,7 +261,7 @@ class NormaChain {
 		return $this;
 	}
 
-	public function Rows() {
+	public function Done() {
 		$className = $this->className;
 		$table = $className::$table;
 

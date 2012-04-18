@@ -106,7 +106,7 @@ class ChainingTest extends PHPUnit_Framework_TestCase {
 		$a = new Article();
 		$a->ID = 1;
 
-		$rows = $a->Author()->FileUploads()->Rows();
+		$rows = $a->Author()->FileUploads()->Done();
 
 		$b = new File();
 		$b->ID = 1;
