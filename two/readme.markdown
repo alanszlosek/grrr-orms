@@ -2,7 +2,7 @@ Features
 ====
 
 * Declare field aliases and relations as static variables of Norma-derived classes (see tests folder for test examples)
-* Load Article 123 by: $a = Article::ID(123)
+* Load Article 123 with $a = Article::ID(123). $a will be null if 123 isn't found.
 * Set / get fields: $a->Title = 'New title';
 * Create() and Save()
 * Chain through to a related object: $a->Author->Address->State

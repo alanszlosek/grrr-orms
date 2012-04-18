@@ -60,15 +60,9 @@ abstract class Norma {
 		if (array_key_exists($name, static::$relationships)) {
 			if (array_key_exists($name, $this->data)) { // something's in the cache with this name
 				$value = $this->data[ $name ];
-				if (is_object($value)) return $value; // object has already been pulled and is cached
-				if (is_array($value)) { // looks like row data, but we need to return an object
-					$relation = static::$relationships[ $name ];
-					$className = $relation[1];
-					$a = new $className($value);
-					$this->data[ $name ] = $a;
-					return $a;
-				}
-				// uhhh
+				$relation = static::$relationships[ $name ];
+				$className = $relation[1];
+				$a = new $className($value);
 			} else {
 				$relation = static::$relationships[ $name ];
 				$className = $relation[1];
@@ -76,7 +70,7 @@ abstract class Norma {
 				$v = $this->data[ static::$aliases[ $relation[0] ] ];
 				// load using primary key
 				$a = $className::$key( $v );
-				$this->data[ $name ] = $a;
+				$this->data[ $name ] = $a->toArray();
 			}
 			// Should be loaded
 			// but what if not? return false?
@@ -144,21 +138,18 @@ abstract class Norma {
 		}
 		return null;
 	}
-	
-	// really should build offbase array classes so casting works
-	public function toArray() {
-		// walk $data, add data from relationCache too
-		// want this to only contain arrays and scalars, no objects
 
-		// Maps these values to aliases?
+	public function toArray() {
+		// want this to only contain arrays and scalars, no objects
 		$data = array();
 		foreach ($this->data as $key => $value) {
-			// Normal field data is NOT stored by alias, but we should return it as such
-			$alias = array_search($key, static::$aliases);
-			if ($alias !== false) {
-				$data[ $alias ] = $value;
-			} elseif (array_key_exists($key, static::$relationships)) {
-				// If object, use toArray() on it
+			if (
+				in_array($key, static::$aliases)
+				||
+				array_key_exists($key, static::$relationships)
+				||
+				array_key_exists($key, static::$foreignAliases)
+			) {
 				$data[ $key ] = $value;
 			}
 		}

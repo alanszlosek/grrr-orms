@@ -33,12 +33,12 @@ class ReadTest extends TestSetup {
 
 	public function testOpenByPrimaryKey() {
 		$data = array(
-			'ID' => 1,
-			'Title' => 'test article',
-			'Body' => '',
-			'ThumbnailID' => 1,
-			'CoverID' => 2,
-			'AuthorID' => 1
+			'id' => 1,
+			'title' => 'test article',
+			'body' => '',
+			'thumbnail_id' => 1,
+			'cover_id' => 2,
+			'author_id' => 1
 		);
 		$a = Article::ID(1);
 		$b = $a->toArray();
@@ -51,17 +51,52 @@ class ReadTest extends TestSetup {
 		$thumb = $a->Thumbnail;
 		$this->assertEquals( get_class($thumb), 'File');
 		$data = array(
-			'ID' => 1,
-			'Name' => 'article-thumb.jpg',
-			'UserID' => 1
+			'id' => 1,
+			'name' => 'article-thumb.jpg',
+			'user_id' => 1
 		);
 		$this->assertEquals( $thumb->toArray(), $data);
 	}
+
 	public function testForeignAlias() {
 		$a = Article::ID(1);
 		$this->assertEquals($a->CoverFileName, 'article-cover.jpg');
 		$this->assertEquals($a->CoverImage->ID, 2);
 	}
+
+	public function testToArray() {
+		$a = Article::ID(1);
+		$a->Thumbnail;
+		$a->CoverImage;
+		$a->Author;
+
+		$data = array(
+			'id' => 1,
+			'title' => 'test article',
+			'body' => '',
+			'thumbnail_id' => 1,
+			'cover_id' => 2,
+			'author_id' => 1,
+
+			'Thumbnail' => array(
+				'id' => 1,
+				'name' => 'article-thumb.jpg',
+				'user_id' => 1
+			),
+			'CoverImage' => array(
+				'id' => 2,
+				'name' => 'article-cover.jpg',
+				'user_id' => 1
+			),
+			'Author' => array(
+				'id' => 1,
+				'name' => 'john day'
+			)
+		);
+		$b = $a->toArray();
+		$this->assertEquals($data, $b);
+	}
+
 	public function testRelationCaching() {
 		// make sure the array contains the related objects too, although this will change in the future ...
 		// i don't want any objects returned from toArray(), just nested associative array data
@@ -69,31 +104,31 @@ class ReadTest extends TestSetup {
 		$a->Thumbnail;
 		$a->CoverImage;
 		$data = array(
-			'ID' => 1,
-			'Title' => 'test article',
-			'Body' => '',
-			'ThumbnailID' => 1,
-			'CoverID' => 2,
-			'AuthorID' => 1
+			'id' => 1,
+			'title' => 'test article',
+			'body' => '',
+			'thumbnail_id' => 1,
+			'cover_id' => 2,
+			'author_id' => 1
 		);
 		$b = $a->toArray();
-		$thumb = $b['Thumbnail']->toArray();
+		$thumb = $b['Thumbnail'];
 		unset($b['Thumbnail']);
-		$cover = $b['CoverImage']->toArray();
+		$cover = $b['CoverImage'];
 		unset($b['CoverImage']);
 		$this->assertEquals($data, $b);
 		
 		$data = array(
-			'ID' => 1,
-			'Name' => 'article-thumb.jpg',
-			'UserID' => 1
+			'id' => 1,
+			'name' => 'article-thumb.jpg',
+			'user_id' => 1
 		);
 		$this->assertEquals($data, $thumb);
 
 		$data = array(
-			'ID' => 2,
-			'Name' => 'article-cover.jpg',
-			'UserID' => 1
+			'id' => 2,
+			'name' => 'article-cover.jpg',
+			'user_id' => 1
 		);
 		$this->assertEquals($data, $cover);
 	}
