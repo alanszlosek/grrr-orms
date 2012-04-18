@@ -62,6 +62,20 @@ class ReadTest extends TestSetup {
 		$this->assertEquals( $thumb->toArray(), $data);
 	}
 
+	public function testRelation2() {
+		$a = Article::ID(1);
+
+		$b = $a->Thumbnail;
+		$b->Name = 'a.jpg';
+		$b->Save();
+		$this->assertEquals('a.jpg', $b->Name);
+
+		$c = $a->Thumbnail;
+		$this->assertEquals('a.jpg', $c->Name);
+	}
+
+
+
 	public function testForeignAlias() {
 		$a = Article::ID(1);
 		$this->assertEquals($a->CoverFileName, 'article-cover.jpg');
@@ -82,20 +96,9 @@ class ReadTest extends TestSetup {
 			'cover_id' => 2,
 			'author_id' => 1,
 
-			'Thumbnail' => array(
-				'id' => 1,
-				'name' => 'article-thumb.jpg',
-				'user_id' => 1
-			),
-			'CoverImage' => array(
-				'id' => 2,
-				'name' => 'article-cover.jpg',
-				'user_id' => 1
-			),
-			'Author' => array(
-				'id' => 1,
-				'name' => 'john day'
-			)
+			'Thumbnail' => File::ID(1),
+			'CoverImage' => File::ID(2),
+			'Author' => User::ID(1)
 		);
 		$b = $a->toArray();
 		$this->assertEquals($data, $b);
@@ -122,18 +125,10 @@ class ReadTest extends TestSetup {
 		unset($b['CoverImage']);
 		$this->assertEquals($data, $b);
 		
-		$data = array(
-			'id' => 1,
-			'name' => 'article-thumb.jpg',
-			'user_id' => 1
-		);
+		$data = File::ID(1);
 		$this->assertEquals($data, $thumb);
 
-		$data = array(
-			'id' => 2,
-			'name' => 'article-cover.jpg',
-			'user_id' => 1
-		);
+		$data = File::ID(2);
 		$this->assertEquals($data, $cover);
 	}
 

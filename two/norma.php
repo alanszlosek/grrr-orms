@@ -1,24 +1,5 @@
 <?php 
 
-/*
-
-NEW GOALS
-- caches all data pulled from DB in $this->data
-- when you request an object from data that is actually the name of a relation, it'll instantiate the appropriate class for you
-	- yikes, but this means we'll have a copy of data in our nested $data, but after instantiation, the related object will be operating on a different array ... guess i shouldn't do things that way
-	- guess to_array() needs to walk these relations and return the proper nested structure (without cycles, if those are possible)
-- this means we sould be able to restore state simply by passing an array of fields in the constructor, which changes the way we handle primary keys slightly
-
-- use dbFacile or other for getting last id back from inserts
-- make sure updates work
-- escaping properly
-- quoting properly
-
-- make it easy to cache ... preferrably a whole tree of objects that have been used for a request
-	- __toArray() returns this structure that can be used by future instances
-
-*/
-
 abstract class Norma {
 	public static $dbFacile;
 	// You should declare:
@@ -59,22 +40,18 @@ abstract class Norma {
 		// Relationship
 		if (array_key_exists($name, static::$relationships)) {
 			if (array_key_exists($name, $this->data)) { // something's in the cache with this name
-				$value = $this->data[ $name ];
-				$relation = static::$relationships[ $name ];
-				$className = $relation[1];
-				$a = new $className($value);
+				return $this->data[ $name ];
 			} else {
 				$relation = static::$relationships[ $name ];
 				$className = $relation[1];
 				$key = $relation[2];
 				$v = $this->data[ static::$aliases[ $relation[0] ] ];
-				// load using primary key
+				// Load using primary key
 				$a = $className::$key( $v );
-				$this->data[ $name ] = $a->toArray();
+				if ($a) $this->data[ $name ] = $a;
+				else return null;
 			}
-			// Should be loaded
-			// but what if not? return false?
-			return $a;
+			return $this->data[ $name ];
 		}
 		// Local field?
 		if (array_key_exists($name, static::$aliases)) {
