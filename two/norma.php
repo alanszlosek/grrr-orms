@@ -15,7 +15,10 @@ abstract class Norma {
 	protected $data = array();
 
 	public function __construct($data = array()) {
-		if (is_array($data)) $this->data = $data; // merge in data
+		if (is_array($data)) {
+			$this->data = $data; // merge in data
+			$this->changed = array_keys($data);
+		}
 	}
 
 	public function __get($name) {
@@ -95,7 +98,7 @@ abstract class Norma {
 				array(TargetField, TargetField, VALUE)
 			);
 			*/
-			return new NormaChain($className, $where );
+			return new NormaFind($className, $where );
 		}
 		return null;
 	}
@@ -114,6 +117,14 @@ abstract class Norma {
 			}
 		}
 		return null;
+	}
+
+	/*
+	So you can do:
+		$where = array('
+		$article = Article::Find(
+	*/
+	public static function Find() {
 	}
 
 	public function toArray() {
@@ -136,9 +147,10 @@ abstract class Norma {
 	// Alphabetical
 	protected function ChangedData() {
 		$changed = array_unique($this->changed);
+		$changed = array_intersect( array_values(static::$aliases), $changed);
 		// remove $pk from changed
 		$data = array();
-		foreach ($this->changed as $field) {
+		foreach ($changed as $field) {
 			$data[ $field ] = $this->data[ $field ];
 		}
 		return $data;
@@ -146,10 +158,11 @@ abstract class Norma {
 	
 	public function Create() {
 		$data = $this->ChangedData();
+		$pk = static::$aliases[ static::$pk ];
 		// Remove primary key
-		if (static::$pk) unset( $data[ static::$aliases[ static::$pk ] ] );
+		if (static::$pk) unset( $data[ $pk ] );
 		$id = Norma::$dbFacile->insert($data, static::$table);
-		if (static::$pk) $this->data[ static::$aliases[ static::$pk ] ] = $id;
+		if (static::$pk) $this->data[ $pk ] = $id;
 		$this->changed = array();
 		return $id;
 	}
@@ -182,7 +195,18 @@ abstract class Norma {
 }
 
 // Grr, this needs outside access to relationships and table, etc
-class NormaChain {
+
+/*
+TODO
+* Allow chaining through to same Class more than once, passing additional where clauses
+* Should we allow string-based where clauses? ... really don't want to parse them in order to prepend table name
+* Use NormaChain as Find() ... Article::Find()
+	Find() accepts where clause
+	* Can then chain to perform joins
+	* How to specify the class that should ultimately be instantiated for each resulting row?
+
+*/
+class NormaFind {
 	protected $className = null;
 	protected $where = array();
 	public function __construct($name, $where) {
