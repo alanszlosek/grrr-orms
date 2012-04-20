@@ -1,7 +1,7 @@
 <?php
 require('setup.php');
 
-class RelationTests extends TestSetup {
+class RelationTest extends TestSetup {
 
 	public function testRelation() {
 		$a = Article::ID(1);
