@@ -5,13 +5,13 @@ abstract class Norma {
 	// You should declare:
 	public static $aliases = array();
 	public static $keys = array();
-	public static $pk = 'ID';
+	public static $pk = 'ID'; // Default alias
 	public static $relationships = array();
 	public static $foreignAliases = array();
 	
 	// So we only include fields that have changed in UPDATE sql
 	protected $changed = array();
-	// This is where all of the database data lives ... ORIGINAL FIELD NAMES, NOT ALIASES
+	// This is where all of the database data lives ... keyed by DB FIELD NAMES, NOT ALIASES
 	protected $data = array();
 
 	public function __construct($data = array()) {
@@ -22,58 +22,50 @@ abstract class Norma {
 	}
 
 	public function __get($name) {
-		/*
-		Perhaps order should be:
-		- check $this->cache
-		- check $this->relationship
-		- check foreign aliases
+		// Check data cache first, so arbitrary things can be attached to instances if need be
+		if (array_key_exists($name, $this->data)) {
+			return $this->data[ $name ];
 
-		Needs thinking.
-		*/
+		// Local field?
+		} elseif (array_key_exists($name, static::$aliases)) {
+			// might not have been pulled, but we don't care
+			return $this->data[ static::$aliases[ $name ] ];
+
+		// Relationship?
+		} elseif (array_key_exists($name, static::$relationships)) {
+			$relation = static::$relationships[ $name ];
+			$className = $relation[1];
+			$key = $relation[2];
+			$v = $this->data[ static::$aliases[ $relation[0] ] ];
+			// Load using specified key ... hope it's been declared as one
+			$a = $className::$key( $v );
+			if ($a) return $this->data[ $name ] = $a;
+
 		// Foreign alias?
-		if (array_key_exists($name, static::$foreignAliases)) {
+		} elseif (array_key_exists($name, static::$foreignAliases)) {
 			$data = static::$foreignAliases[ $name ];
 			$localAlias = $data[0];
 			$foreignAlias = $data[1];
 			// Go through our existing means for pulling and caching relations,
-			// then return the specific field
+			// so it gets cached in $this->data, then return the specific field
 			$a = $this->$localAlias;
 			return $a->$foreignAlias;
-		}
-		// Relationship
-		if (array_key_exists($name, static::$relationships)) {
-			if (array_key_exists($name, $this->data)) { // something's in the cache with this name
-				return $this->data[ $name ];
-			} else {
-				$relation = static::$relationships[ $name ];
-				$className = $relation[1];
-				$key = $relation[2];
-				$v = $this->data[ static::$aliases[ $relation[0] ] ];
-				// Load using primary key
-				$a = $className::$key( $v );
-				if ($a) $this->data[ $name ] = $a;
-				else return null;
-			}
-			return $this->data[ $name ];
-		}
-		// Local field?
-		if (array_key_exists($name, static::$aliases)) {
-			// might not have been pulled, but we don't care
-			return $this->data[ static::$aliases[ $name ] ];
 		}
 		return null;
 	}
 
 	public function __set($name, $value) {
 		// I don't like loading via primary/unique key using an assignment.
-		// Plus, it's hard to report "row not found" using that technique ...
-		// I didn't want to throw an exception.
+		// Plus, it's hard to report "row not found" using that technique
+		// and I didn't want to throw an exception.
 		// Article::ID(1234) is the way we load now
 		if (array_key_exists($name, static::$aliases)) { // Set field value
 			$field = static::$aliases[ $name ];
-			$this->changed[] = $field; // So we can save only the fields that have changed
-			$this->data[ $field ] = $value;
+			$this->changed[] = $field; // So our update SQL contains only changed fields
 		}
+		// This assignment is not within the above conditional so programmers can
+		// annotate this Norma instance with extra data if need be. It's handy.
+		$this->data[ $field ] = $value;
 	}
 
 	// Used to access related objects via join so we can jump through to
@@ -115,11 +107,14 @@ abstract class Norma {
 			} else {
 				return new static($row);
 			}
+		} else {
+			throw new Exception('Expected ' . $name . ' to be primary or unique key');
 		}
 		return null;
 	}
 
 	/*
+	WORK IN PROGRESS
 	So you can do:
 		$where = array('
 		$article = Article::Find(
@@ -127,6 +122,8 @@ abstract class Norma {
 	public static function Find() {
 	}
 
+	// NOT SURE HOW THIS SHOULD FUNCTION YET
+	// Might need two separate functions ... we have aliases to translate or not. Hmm.
 	public function toArray() {
 		// want this to only contain arrays and scalars, no objects
 		$data = array();
@@ -156,6 +153,7 @@ abstract class Norma {
 		return $data;
 	}
 	
+	// Still torn about whether this should go through Save() ...
 	public function Create() {
 		$data = $this->ChangedData();
 		$pk = static::$aliases[ static::$pk ];
@@ -176,7 +174,12 @@ abstract class Norma {
 	}
 	
 	protected static function MakeSql($alias, $value) {
-		// To hell with doing field mappings in the SQL ... makes it hard to write custom queries and benefit from ORM
+		// To hell with doing field mappings in the SQL, because:
+		// If we're doing something special under the hood, we can't allow programmers to
+		// customize the SQL and still have it work with Norma. Want to keep it simple,
+		// and not do anything unexpected. If a coder wants to write a custom WHERE
+		// clause and pass it to Norma, I'd like to let him. Granted, we have no mechanism
+		// for doing so yet.
 		$sql = 'SELECT * FROM ' . static::$table;
 		$sql .= ' WHERE ';
 		$sql .= '`' . static::$aliases[ $alias ] . '`=' . $value;
