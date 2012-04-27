@@ -76,6 +76,12 @@ class CrudTest extends TestSetup {
 		$this->assertEquals($u->Name, 'Another');
 	}
 
+	public function testNonUpdate() {
+		$u = User::ID(1);
+		$a = $u->Save();
+		$this->assertEquals(false, $a);
+	}
+
 	public function testDelete() {
 		$u = User::ID(1);
 		$a = $u->Delete();
@@ -99,5 +105,14 @@ class CrudTest extends TestSetup {
 		//$this->assertEquals(1,1);
 	}
 
+	// Test annotating with non-field data
+	public function testAnnotating() {
+		$a = Article2::ID(1);
+		$a->SomethingYay = 'Gerbils';
+
+		$this->assertEquals('Gerbils', $a->SomethingYay);
+		// What about trying to save after
+		$a->Save();
+	}
 }
 

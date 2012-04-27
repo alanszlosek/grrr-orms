@@ -2,7 +2,7 @@
 
 abstract class Norma {
 	public static $dbFacile;
-	// You should declare:
+	// You should declare these in derivative classes:
 	public static $aliases = array();
 	public static $keys = array();
 	public static $pk = 'ID'; // Default alias
@@ -14,10 +14,11 @@ abstract class Norma {
 	// This is where all of the database data lives ... keyed by DB FIELD NAMES, NOT ALIASES
 	protected $data = array();
 
-	public function __construct($data = array()) {
+	public function __construct($data = array(), $flagAsChanged = true) {
 		if (is_array($data)) {
 			$this->data = $data; // merge in data
-			$this->changed = array_keys($data);
+			// In __callStatic we pass false for this field, since we're loading directly from DB
+			if ($flagAsChanged) $this->changed = array_keys($data);
 		}
 	}
 
@@ -62,7 +63,7 @@ abstract class Norma {
 		if (array_key_exists($name, static::$aliases)) { // Set field value
 			$field = static::$aliases[ $name ];
 			$this->changed[] = $field; // So our update SQL contains only changed fields
-		}
+		} else $field = $name;
 		// This assignment is not within the above conditional so programmers can
 		// annotate this Norma instance with extra data if need be. It's handy.
 		$this->data[ $field ] = $value;
@@ -105,7 +106,7 @@ abstract class Norma {
 			if (!$row) {
 				return null;
 			} else {
-				return new static($row);
+				return new static($row, false);
 			}
 		} else {
 			throw new Exception('Expected ' . $name . ' to be primary or unique key');
@@ -190,10 +191,12 @@ abstract class Norma {
 	public function Save() {
 		$pk = static::$aliases[ static::$pk ];
 		$data = $this->ChangedData();
-		// new or not?
-		$a = Norma::$dbFacile->update($data, static::$table, array($pk => $this->data[ $pk ]));
-		
-		return $a;
+		if ($data) {
+			// new or not?
+			$a = Norma::$dbFacile->update($data, static::$table, array($pk => $this->data[ $pk ]));
+			return $a;
+		}
+		return false;
 	}
 }
 
