@@ -70,7 +70,7 @@ class CrudTest extends TestSetup {
 		$u = User::ID(1);
 		$u->Name = 'Another';
 		$a = $u->Save();
-		$this->assertEquals($a, true);
+		$this->assertEquals(1, $a);
 
 		$u = User::ID(1);
 		$this->assertEquals($u->Name, 'Another');
@@ -85,7 +85,7 @@ class CrudTest extends TestSetup {
 	public function testDelete() {
 		$u = User::ID(1);
 		$a = $u->Delete();
-		$this->assertEquals($a, true);
+		$this->assertEquals(1, $a);
 
 		$u = User::ID(1);
 		$this->assertNull($u);

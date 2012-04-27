@@ -192,7 +192,7 @@ abstract class Norma {
 		$pk = static::$aliases[ static::$pk ];
 		$data = $this->ChangedData();
 		if ($data) {
-			// new or not?
+			// dbFacile update() returns affected rows
 			$a = Norma::$dbFacile->update($data, static::$table, array($pk => $this->data[ $pk ]));
 			return $a;
 		}
