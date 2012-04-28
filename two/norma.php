@@ -158,11 +158,14 @@ abstract class Norma {
 	public function Create() {
 		$data = $this->ChangedData();
 		$pk = static::$aliases[ static::$pk ];
-		// Remove primary key
-		if (static::$pk) unset( $data[ $pk ] );
+		if (static::$pk) unset( $data[ $pk ] ); // Remove primary key
+		if (sizeof($data) == 0) return false; // If nothing to save, don't even try
 		$id = Norma::$dbFacile->insert($data, static::$table);
-		if (static::$pk) $this->data[ $pk ] = $id;
-		$this->changed = array();
+		// $id will be false if insert fails. Up to programmer to care.
+		if ($id) {
+			if (static::$pk) $this->data[ $pk ] = $id;
+			$this->changed = array();
+		}
 		return $id;
 	}
 	
@@ -172,6 +175,10 @@ abstract class Norma {
 			$pk => $this->data[ $pk ]
 		);
 		return Norma::$dbFacile->Delete(static::$table, $data);
+	}
+
+	public function Error() {
+		return Norma::$dbFacile->error();
 	}
 	
 	protected static function MakeSql($alias, $value) {

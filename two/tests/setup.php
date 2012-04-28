@@ -75,9 +75,12 @@ class TestSetup extends PHPUnit_Framework_TestCase {
 		$sql[] = 'drop table if exists article';
 		$sql[] = 'drop table if exists file';
 		$sql[] = 'drop table if exists user';
+		$sql[] = 'drop index if exists user_name';
 		$sql[] = 'create table article (id integer primary key autoincrement, title varchar(255), body text, cover_id int(11), thumbnail_id int(11), author_id int(11))';
 		$sql[] = 'create table file (id integer primary key autoincrement, name varchar(255), user_id int(11))';
 		$sql[] = 'create table user (id integer primary key autoincrement, name varchar(255))';
+
+		$sql[] = 'create unique index user_name on user (name)';
 
 		$sql[] = "insert into file (name, user_id) values('article-thumb.jpg', 1)";
 		$sql[] = "insert into file (name, user_id) values('article-cover.jpg', 1)";

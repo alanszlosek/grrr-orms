@@ -76,6 +76,46 @@ class CrudTest extends TestSetup {
 		$this->assertEquals($u->Name, 'Another');
 	}
 
+	public function testCreateThenUpdate() {
+		$u = new User();
+		$u->Name = 'Third';
+		$a = $u->Create();
+
+		$this->assertEquals($a, 3);
+		$this->assertEquals($u->ID, 3);
+
+		$u->Name = 'Third x2';
+		$a = $u->Save();
+		$this->assertEquals(1, $a);
+		$this->assertEquals($u->Name, 'Third x2');
+
+		$v = User::ID(3);
+		$this->assertEquals($v->Name, 'Third x2');
+	}
+
+	public function testCreateWithoutData() {
+		$u = new User();
+		$a = $u->Create();
+		$this->assertEquals(false, $a);
+	}
+
+	public function testCreateWithExistingKey() {
+		$u = new User();
+		$u->ID = 1; // Existing primary key
+		$a = $u->Create();
+		$this->assertEquals(false, $a);
+	}
+
+	public function testCreateFailure() {
+		$u = new User();
+		$u->Name = 'Woowoo'; // Existing name, which must be unique
+		// SQLite triggers and error, but PHPUnit converts it into an Exception
+		// Supress the error so it doesn't get turned into an Exception
+		$a = @$u->Create();
+		$this->assertEquals(false, $a);
+		$this->assertEquals('column name is not unique', $u->Error());
+	}
+
 	public function testNonUpdate() {
 		$u = User::ID(1);
 		$a = $u->Save();
