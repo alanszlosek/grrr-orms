@@ -154,5 +154,19 @@ class CrudTest extends TestSetup {
 		// What about trying to save after
 		$a->Save();
 	}
+
+	// NOW WHEN PRIMARY KEY CONSISTS OF MORE THAN 1 FIELD
+	/*
+	Torn because the database won't auto-increment with a multi-field unique key ... so Create() becomes irrelevant.
+	And now we've got some confusion ... Create() removes primary key, and only inserts other fields so DB can do
+	auto-increment. And Save() uses primary key in the where clause for the update, but we want neither! Wow. Thought
+	this would be simple.
+	*/
+	public function testCreateMultiKey() {
+		$a = new Combo();
+		$a->Key1 = 1;
+		$a->Key2 = 2;
+		$b = $a->Save();
+	}
 }
 
