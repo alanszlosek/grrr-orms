@@ -65,6 +65,16 @@ class File extends Norma {
 	);
 }
 
+class Combo extends Norma {
+	public static $table = 'combo';
+	public static $pk = array();
+	public static $aliases = array(
+		'Key1' => 'key1',
+		'Key2' => 'key2',
+		'Name' => 'name'
+	);
+}
+
 
 // Wee
 class TestSetup extends PHPUnit_Framework_TestCase {
@@ -75,10 +85,12 @@ class TestSetup extends PHPUnit_Framework_TestCase {
 		$sql[] = 'drop table if exists article';
 		$sql[] = 'drop table if exists file';
 		$sql[] = 'drop table if exists user';
+		$sql[] = 'drop table if exists combo';
 		$sql[] = 'drop index if exists user_name';
 		$sql[] = 'create table article (id integer primary key autoincrement, title varchar(255), body text, cover_id int(11), thumbnail_id int(11), author_id int(11))';
 		$sql[] = 'create table file (id integer primary key autoincrement, name varchar(255), user_id int(11))';
 		$sql[] = 'create table user (id integer primary key autoincrement, name varchar(255))';
+		$sql[] = 'create table combo (key1 integer, key2 integer, name varchar(255))';
 
 		$sql[] = 'create unique index user_name on user (name)';
 
