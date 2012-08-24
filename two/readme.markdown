@@ -1,13 +1,13 @@
 Features
 ====
 
-* Declare field aliases and relations as static variables of Norma-derived classes (see tests folder for test examples)
+* Declare field aliases and relations as static variables of Norma-derived classes (see tests/setup.php for setup examples)
 * Load Article 123 with $a = Article::ID(123). $a will be null if 123 isn't found.
 * Set / get fields: $a->Title = 'New title';
 * Create() and Save()
 * Chain through to a related object: $a->Author->Address->State
-* Chain through to related objects (plural) using joins: $a->Author()->File()->Done() ... Gets all article author's files.
-* Create aliases to fields in far away objects (see $foreignAliases usage in tests)
+* Chain through to related objects (plural) using joins under the hood: $a->Author()->File()->Done() ... Gets all article author's files.
+* Create aliases to fields in far away objects (see $foreignAliases usage in tests/setup.php)
 
 Goals
 ====
@@ -33,8 +33,8 @@ Running the Unit Tests
 
 * Install PHPUnit (what a PITA)
 * Go into two/tests
-* Run: phpunit ReadTest
-* Run: phpunit ChainingTest
+* Run: phpunit CrudTest
+* Run: phpunit RelationTest 
 
 Grrrrr
 ====
