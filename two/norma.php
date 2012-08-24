@@ -159,7 +159,8 @@ abstract class Norma {
 		$data = $this->ChangedData();
 		$pk = static::$aliases[ static::$pk ];
 		if (static::$pk) unset( $data[ $pk ] ); // Remove primary key
-		if (sizeof($data) == 0) return false; // If nothing to save, don't even try
+		if (sizeof($data) == 0) return false; // If nothing to save, don't even try ... hmmm,
+		// but don't some DBMSes support insert without values?
 		$id = Norma::$dbFacile->insert($data, static::$table);
 		// $id will be false if insert fails. Up to programmer to care.
 		if ($id) {
@@ -203,6 +204,7 @@ abstract class Norma {
 			$a = Norma::$dbFacile->update($data, static::$table, array($pk => $this->data[ $pk ]));
 			return $a;
 		}
+		// There was nothing to save
 		return false;
 	}
 }
@@ -269,7 +271,7 @@ class NormaFind {
 		$pk = $className::$pk;
 		$out = array();
 		foreach ($rows as $row) {
-			$out[] = new $className($row);
+			$out[] = new $className($row, false);
 		}
 		return $out;
 	}
