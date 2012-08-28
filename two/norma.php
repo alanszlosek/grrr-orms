@@ -101,13 +101,32 @@ abstract class Norma {
 	// Loads User record with primary key of 1 from database and returns an instance of User with that data
 	// THE ONLY WAY TO LOAD A ROW FROM THE DB
 	public static function __callStatic($name, $args) {
-		if (
-			$name == static::$pk
-			||
-			in_array($name, static::$keys)
-		) {
+		// Multiple fields in $name?
+		$fields = explode('_', $name);
+		$staticPK = (is_array(static::$pk) ? static::$pk : array(static::$pk));
+		$a = array_intersect($staticPK, $fields);
+		$b = array_intersect(static::$keys, $fields);
+		/*
+		if ($name == static::$pk || in_array($name, static::$keys)) {
 			$sql = static::MakeSql($name, $args[0]);
-			$row = Norma::$dbFacile->fetchRow($sql);
+		*/
+		$where = array();
+		$parameters = array();
+		if (sizeof($a) == sizeof($staticPK)) {
+			foreach($staticPK as $i => $key) {
+				$where[] = '`' . static::$aliases[ $key ] . '`=?';
+				$parameters[] = $args[ $i ];
+			}
+		}
+		if (sizeof($b) == sizeof(static::$keys)){
+			foreach(static::$keys as $i => $key) {
+				$where[] = '`' . static::$aliases[ $key ] . '`';
+				$parameters[] = $args[ $i ];
+			}
+		}
+		if ($where) {
+			$sql = 'SELECT * FROM ' . static::$table . ' WHERE ' . implode(' AND ', $where);
+			$row = Norma::$dbFacile->fetchRow($sql, $parameters);
 			if (!$row) {
 				return null;
 			} else {
@@ -213,19 +232,28 @@ abstract class Norma {
 		$sql .= '`' . static::$aliases[ $alias ] . '`=' . $value;
 		return $sql;	
 	}
-	
+
 	// Torn between Create() and Update() or just Save()
 	public function Save() {
-		$pk = static::$aliases[ static::$pk ];
+		// We support Create() for objects without a primary key, but not Save()
+		$staticPK = static::$pk;
+		if ($staticPK == false) return false;
 		$data = $this->ChangedData();
-		if ($data) {
-			// if pk is array, convert to where array
-			// dbFacile update() returns affected rows
-			$a = Norma::$dbFacile->update($data, static::$table, array($pk => $this->data[ $pk ]));
-			return $a;
-		}
 		// There was nothing to save
-		return false;
+		if (sizeof($data) == 0) return false;
+
+		// Support single and multi-field primary keys
+		$where = array();
+		if (!is_array($staticPK)) {
+			$staticPK = array($staticPK);
+		}
+		foreach($staticPK as $key) {
+			$where[ $key ] = $this->data[ static::$aliases[$key] ];
+		}
+
+		// dbFacile update() returns affected rows
+		$a = Norma::$dbFacile->update($data, static::$table, $where);
+		return $a;
 	}
 }
 

@@ -168,6 +168,11 @@ class CrudTest extends TestSetup {
 		$a->Name = 'no primary';
 		$b = $a->Create();
 		$this->assertEquals($b, true);
+
+		// This should fail because without a PK there's no way to ensure we've updated the correct row
+		// So Save() on non-PK objects will always skip the query and fail
+		$b = $a->Save();
+		$this->assertEquals($b, false);
 	}
 
 	// Test on table where primary key is not auto-generated
@@ -182,12 +187,18 @@ class CrudTest extends TestSetup {
 		$a->Name = 'non-auto PK';
 		$b = $a->Create();
 		$this->assertEquals($b, true);
+
+		$a->Name = 'non-auto PK updated';
+		$b = $a->Save();
+		$this->assertEquals($b, true);
 	}
 
 	// Test open by non-auto PK
 	public function testNonAutoPrimaryKeyOpen() {
 		$a = NonAutoPK::ID(1234567);
 		$this->assertNotNull($a);
+		$this->assertEquals($a->ID, 1234567);
+		$this->assertEquals($a->Name, 'non-auto PK updated');
 	}
 
 	// NOW WHEN PRIMARY KEY CONSISTS OF MORE THAN 1 FIELD
@@ -203,6 +214,16 @@ class CrudTest extends TestSetup {
 		$a->Key2 = 2;
 		$a->Name = 'Hello';
 		$b = $a->Create();
+		$this->assertEquals($b, true);
+
+		$a->Name = 'Hello again';
+		$b = $a->Save();
+		$this->assertEquals($b, true);
+
+		$c = Combo::Key1_Key2(1,2);
+		$this->assertNotNull($c);
+		$this->assertEquals($c->Key1, 1);
+		$this->assertEquals($c->Key2, 2);
 	}
 }
 
