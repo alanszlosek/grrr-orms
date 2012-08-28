@@ -117,7 +117,9 @@ class CrudTest extends TestSetup {
 	}
 
 	public function testNonUpdate() {
+		// User 1 doesn't exists?
 		$u = User::ID(1);
+		// No fields have been updated
 		$a = $u->Save();
 		$this->assertEquals(false, $a);
 	}
@@ -132,6 +134,7 @@ class CrudTest extends TestSetup {
 	}
 
 
+	// Article2 is a class that extends Article. Everything else should function normally
 	public function testExtending() {
 		$data = array(
 			'ID' => 1,
@@ -155,6 +158,38 @@ class CrudTest extends TestSetup {
 		$a->Save();
 	}
 
+	// Test on table without a primary key
+	public function testNoPrimaryKey() {
+		$a = new NoPK();
+		$b = $a->Create(); // should this fail?
+		$this->assertEquals($b, false);
+
+		$a->ID = time();
+		$a->Name = 'no primary';
+		$b = $a->Create();
+		$this->assertEquals($b, true);
+	}
+
+	// Test on table where primary key is not auto-generated
+	public function testNonAutoPrimaryKey() {
+		$a = new NonAutoPK();
+		$b = $a->Create(); // should this fail?
+		$this->assertEquals($b, false);
+		$b = $a->Save(); // should this fail?
+		$this->assertEquals($b, false);
+
+		$a->ID = 1234567;
+		$a->Name = 'non-auto PK';
+		$b = $a->Create();
+		$this->assertEquals($b, true);
+	}
+
+	// Test open by non-auto PK
+	public function testNonAutoPrimaryKeyOpen() {
+		$a = NonAutoPK::ID(1234567);
+		$this->assertNotNull($a);
+	}
+
 	// NOW WHEN PRIMARY KEY CONSISTS OF MORE THAN 1 FIELD
 	/*
 	Torn because the database won't auto-increment with a multi-field unique key ... so Create() becomes irrelevant.
@@ -166,7 +201,8 @@ class CrudTest extends TestSetup {
 		$a = new Combo();
 		$a->Key1 = 1;
 		$a->Key2 = 2;
-		$b = $a->Save();
+		$a->Name = 'Hello';
+		$b = $a->Create();
 	}
 }
 
