@@ -155,7 +155,9 @@ class CrudTest extends TestSetup {
 
 		$this->assertEquals('Gerbils', $a->SomethingYay);
 		// What about trying to save after
-		$a->Save();
+		$b = $a->Save();
+		// false because no fields have changed
+		$this->assertEquals($b, false);
 	}
 
 	// Test on table without a primary key
@@ -191,15 +193,15 @@ class CrudTest extends TestSetup {
 		$a->Name = 'non-auto PK updated';
 		$b = $a->Save();
 		$this->assertEquals($b, true);
-	}
 
-	// Test open by non-auto PK
-	public function testNonAutoPrimaryKeyOpen() {
+		// Test opening by this key
 		$a = NonAutoPK::ID(1234567);
 		$this->assertNotNull($a);
-		$this->assertEquals($a->ID, 1234567);
 		$this->assertEquals($a->Name, 'non-auto PK updated');
+		$b = $a->Save(); // should this fail?
+		$this->assertEquals($b, false);
 	}
+
 
 	// NOW WHEN PRIMARY KEY CONSISTS OF MORE THAN 1 FIELD
 	/*
@@ -212,6 +214,7 @@ class CrudTest extends TestSetup {
 		$a = new Combo();
 		$a->Key1 = 1;
 		$a->Key2 = 2;
+		// What if we didn't specify name?
 		$a->Name = 'Hello';
 		$b = $a->Create();
 		$this->assertEquals($b, true);
