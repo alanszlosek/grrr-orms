@@ -1,9 +1,15 @@
 <?php
 include('../norma.php');
 include('/home/alan/coding/projects/dbFacile/src/dbFacile_sqlite3.php');
-
 $db = new dbFacile_sqlite3();
 $db->open('./norma.sqlite');
+
+/*
+include('/home/alan/coding/projects/dbFacile/src/dbFacile_mysql.php');
+$db = new dbFacile_mysql();
+$db->open('norma', 'norma', 'norma');
+*/
+
 Norma::$dbFacile = $db;
 
 class Article extends Norma {
@@ -113,14 +119,29 @@ class TestSetup extends PHPUnit_Framework_TestCase {
 		$sql[] = 'drop table if exists nonAutoPK';
 		$sql[] = 'drop index if exists user_name';
 
-		$sql[] = 'create table article (id integer primary key autoincrement, title varchar(255), body text, cover_id int(11), thumbnail_id int(11), author_id int(11))';
-		$sql[] = 'create table file (id integer primary key autoincrement, name varchar(255), user_id int(11))';
-		$sql[] = 'create table user (id integer primary key autoincrement, name varchar(255))';
-		$sql[] = 'create table combo (key1 integer, key2 integer, name varchar(255))';
-		$sql[] = 'create table noPK (id integer, name varchar(255))';
-		$sql[] = 'create table nonAutoPK (id integer, name varchar(255))';
+		if (get_class($db) == 'dbFacile_sqlite3') {
 
-		$sql[] = 'create unique index user_name on user (name)';
+			$sql[] = 'create table article (id integer primary key autoincrement, title varchar(255), body text, cover_id int(11), thumbnail_id int(11), author_id int(11))';
+			$sql[] = 'create table file (id integer primary key autoincrement, name varchar(255), user_id int(11))';
+			$sql[] = 'create table user (id integer primary key autoincrement, name varchar(255))';
+			$sql[] = 'create table combo (key1 integer, key2 integer, name varchar(255))';
+			$sql[] = 'create table noPK (id integer, name varchar(255))';
+			$sql[] = 'create table nonAutoPK (id integer, name varchar(255))';
+
+			$sql[] = 'create unique index user_name on user (name)';
+			$sql[] = 'create unique index nonAutoPK_id on nonAutoPK (id)';
+
+		} elseif (get_class($db) == 'dbFacile_mysql') {
+
+			$sql[] = 'create table article (id integer primary key auto_increment, title varchar(255), body text, cover_id int(11), thumbnail_id int(11), author_id int(11))';
+			$sql[] = 'create table file (id integer primary key auto_increment, name varchar(255), user_id int(11))';
+			$sql[] = 'create table user (id integer primary key auto_increment, name varchar(255))';
+			$sql[] = 'create table combo (key1 integer, key2 integer, name varchar(255))';
+			$sql[] = 'create table noPK (id integer, name varchar(255))';
+			$sql[] = 'create table nonAutoPK (id integer primary key, name varchar(255))';
+
+			$sql[] = 'create unique index user_name on user (name)';
+		}
 
 		$sql[] = "insert into file (name, user_id) values('article-thumb.jpg', 1)";
 		$sql[] = "insert into file (name, user_id) values('article-cover.jpg', 1)";

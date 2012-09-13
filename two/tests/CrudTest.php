@@ -62,8 +62,8 @@ class CrudTest extends TestSetup {
 		$u->Name = 'Woowoo';
 		$a = $u->Create();
 
-		$this->assertEquals($a, 2);
-		$this->assertEquals($u->ID, 2);
+		$this->assertEquals(2, $a);
+		$this->assertEquals(2, $u->ID);
 	}
 
 	public function testUpdate() {
@@ -73,7 +73,7 @@ class CrudTest extends TestSetup {
 		$this->assertEquals(1, $a);
 
 		$u = User::ID(1);
-		$this->assertEquals($u->Name, 'Another');
+		$this->assertEquals('Another', $u->Name);
 	}
 
 	public function testCreateThenUpdate() {
@@ -81,16 +81,16 @@ class CrudTest extends TestSetup {
 		$u->Name = 'Third';
 		$a = $u->Create();
 
-		$this->assertEquals($a, 3);
-		$this->assertEquals($u->ID, 3);
+		$this->assertEquals(3, $a);
+		$this->assertEquals(3, $u->ID);
 
 		$u->Name = 'Third x2';
 		$a = $u->Save();
 		$this->assertEquals(1, $a);
-		$this->assertEquals($u->Name, 'Third x2');
+		$this->assertEquals('Third x2', $u->Name);
 
 		$v = User::ID(3);
-		$this->assertEquals($v->Name, 'Third x2');
+		$this->assertEquals('Third x2', $v->Name);
 	}
 
 	public function testCreateWithoutData() {
@@ -109,11 +109,15 @@ class CrudTest extends TestSetup {
 	public function testCreateFailure() {
 		$u = new User();
 		$u->Name = 'Woowoo'; // Existing name, which must be unique
-		// SQLite triggers and error, but PHPUnit converts it into an Exception
+		// SQLite triggers an error, but PHPUnit converts it into an Exception
 		// Supress the error so it doesn't get turned into an Exception
 		$a = @$u->Create();
 		$this->assertEquals(false, $a);
-		$this->assertEquals('column name is not unique', $u->Error());
+		if (get_class(Norma::$dbFacile) == 'dbFacile_sqlite3') {
+			$this->assertEquals('column name is not unique', $u->Error());
+		} elseif (get_class(Norma::$dbFacile) == 'dbFacile_mysql') {
+			$this->assertEquals("Duplicate entry 'Woowoo' for key 'user_name'", $u->Error());
+		}
 	}
 
 	public function testNonUpdate() {
@@ -144,7 +148,7 @@ class CrudTest extends TestSetup {
 			'CoverID' => 2
 		);
 		$a = Article2::ID(1);
-		$this->assertEquals($a->Title(), $data['Title']);
+		$this->assertEquals($data['Title'], $a->Title());
 		//$this->assertEquals(1,1);
 	}
 
@@ -157,49 +161,59 @@ class CrudTest extends TestSetup {
 		// What about trying to save after
 		$b = $a->Save();
 		// false because no fields have changed
-		$this->assertEquals($b, false);
+		$this->assertEquals(false, $b);
 	}
 
 	// Test on table without a primary key
 	public function testNoPrimaryKey() {
 		$a = new NoPK();
+		// PK is required, but we don't specify one
 		$b = $a->Create(); // should this fail?
-		$this->assertEquals($b, false);
+		$this->assertEquals(false, $b);
 
+		// Now we specify one
 		$a->ID = time();
 		$a->Name = 'no primary';
 		$b = $a->Create();
-		$this->assertEquals($b, true);
+		$this->assertEquals(true, $b);
 
 		// This should fail because without a PK there's no way to ensure we've updated the correct row
 		// So Save() on non-PK objects will always skip the query and fail
 		$b = $a->Save();
-		$this->assertEquals($b, false);
+		$this->assertEquals(false, $b);
 	}
 
 	// Test on table where primary key is not auto-generated
 	public function testNonAutoPrimaryKey() {
 		$a = new NonAutoPK();
 		$b = $a->Create(); // should this fail?
-		$this->assertEquals($b, false);
+		$this->assertEquals(false, $b);
 		$b = $a->Save(); // should this fail?
-		$this->assertEquals($b, false);
+		$this->assertEquals(false, $b);
 
+		// Now we specify a PK
 		$a->ID = 1234567;
 		$a->Name = 'non-auto PK';
 		$b = $a->Create();
-		$this->assertEquals($b, true);
+		$this->assertEquals(true, $b);
 
 		$a->Name = 'non-auto PK updated';
 		$b = $a->Save();
-		$this->assertEquals($b, true);
+		$this->assertEquals(true, $b);
 
 		// Test opening by this key
 		$a = NonAutoPK::ID(1234567);
 		$this->assertNotNull($a);
-		$this->assertEquals($a->Name, 'non-auto PK updated');
+		$this->assertEquals('non-auto PK updated', $a->Name);
 		$b = $a->Save(); // should this fail?
-		$this->assertEquals($b, false);
+		$this->assertEquals(false, $b);
+
+		// Test insert with existing key
+		$a = new NonAutoPK();
+		$a->ID = 1234567;
+		$a->Name = 'non-auto PK';
+		$b = @$a->Create();
+		$this->assertEquals(false, $b);
 	}
 
 
@@ -217,16 +231,16 @@ class CrudTest extends TestSetup {
 		// What if we didn't specify name?
 		$a->Name = 'Hello';
 		$b = $a->Create();
-		$this->assertEquals($b, true);
+		$this->assertEquals(true, $b);
 
 		$a->Name = 'Hello again';
 		$b = $a->Save();
-		$this->assertEquals($b, true);
+		$this->assertEquals(true, $b);
 
 		$c = Combo::Key1_Key2(1,2);
 		$this->assertNotNull($c);
-		$this->assertEquals($c->Key1, 1);
-		$this->assertEquals($c->Key2, 2);
+		$this->assertEquals(1, $c->Key1);
+		$this->assertEquals(2, $c->Key2);
 	}
 }
 

@@ -194,16 +194,13 @@ abstract class Norma {
 		if (sizeof($data) == 0) return false; // If nothing to save, don't even try ... hmmm,
 		$id = Norma::$dbFacile->insert($data, static::$table);
 		// $id will be false if insert fails. Up to programmer to care.
-		if (static::$pk && !is_array(static::$pk)) {
-			// should be non-boolean
-			if ($id) {
+		if ($id !== false && static::$pk && !is_array(static::$pk)) {
+			// $id will be true if insert succeeded but didn't generate an id
+			if ($id !== true) {
 				// why would we not always want to do this?
 				//if (static::$pk) 
 				$this->data[ $pk ] = $id;
 				$this->changed = array();
-			} else {
-				// Failure!
-				// exception, or false? what?
 			}
 		}
 		return $id;
