@@ -275,20 +275,30 @@ class NormaFind {
 		$this->where[] = $where;
 	}
 	public function __call($name, $args) {
-		// get current class
-		$className = $this->className;
-		// Tie previous class to new
-		$relationship = $className::$relationships[ $name ];
-		$className2 = $relationship[1];
-		$r = array(
-			$className::$table,
-			$className::$aliases[ $relationship[0] ],
-			$className2::$table,
-			$className2::$aliases[ $relationship[2] ],
-			
-		);
-		array_push($this->where, $r);
-		$this->className = $className2;
+		if ($name == 'where') {
+			// Replace alias table and field names with 
+			$className = $this->className;
+			$this->where[] = array(
+				// Grr, having to use non-aliases creates a crappy dependency
+				$className::$table . '.' . $args[0],
+				$args[1]
+			);
+		} else {
+			// get current class
+			$className = $this->className;
+			// Tie previous class to new
+			$relationship = $className::$relationships[ $name ];
+			$className2 = $relationship[1];
+			$r = array(
+				$className::$table,
+				$className::$aliases[ $relationship[0] ],
+				$className2::$table,
+				$className2::$aliases[ $relationship[2] ],
+				
+			);
+			array_push($this->where, $r);
+			$this->className = $className2;
+		}
 		return $this;
 	}
 
@@ -297,21 +307,35 @@ class NormaFind {
 		$table = $className::$table;
 
 		// What a pain to have to do field aliases in the SQL. ugh
-		$parameters = array();
 		// backtick these values
 		$sql = 'SELECT ' . $table . '.* from ' . $table;
+		/*
+		Thinking I can support all I need by identifying the type of where clause
+		4 elements - join
+		3 elements - table, field, scalar
+		2 elements - string clause, parameters
+		*/
 
-		$fin = array_shift($this->where); // last where will be part of where clause
-
+		$wheres = array();
+		$parameters = array();
 		foreach ($this->where as $where) {
-			$sql .= ' LEFT JOIN ' . $where[0] . ' ON ('
-				. $where[0] . '.' . $where[1]
-				. '='
-				. $where[2] . '.' . $where[3]
-				. ')';
+			$sz = sizeof($where);
+			if ($sz == 4) {
+				$sql .= ' LEFT JOIN ' . $where[0] . ' ON ('
+					. $where[0] . '.' . $where[1]
+					. '='
+					. $where[2] . '.' . $where[3]
+					. ')';
+			} elseif ($sz == 3) {
+				$wheres[] = $where[0] . '.' . $where[1] . '=?';
+				$parameters[] = $where[2];
+			} elseif ($sz == 2) {
+				$wheres[] = $where[0];
+				$parameters[] = $where[1];
+			}
 		}
-		$sql .= ' WHERE ' . $fin[0] . '.' . $fin[1] . '=?';
-		$parameters[] = $fin[2];
+		if ($wheres) $sql .= ' WHERE ' . implode(' AND ', $wheres);
+		//var_dump($sql);var_dump($parameters);exit;
 
 		$rows = Norma::$dbFacile->fetchAll($sql, $parameters);
 		$pk = $className::$pk;

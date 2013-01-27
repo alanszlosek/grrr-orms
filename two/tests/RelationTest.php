@@ -43,11 +43,23 @@ class RelationTest extends TestSetup {
 
 		$b = File::ID(1);
 		$c = File::ID(2);
-		$data = array($b, $c);
+		$d = File::ID(3);
+		$data = array($b, $c, $d);
 
 		$this->assertEquals($rows, $data);
 	}
 
+	public function testJoinFiltering() {
+		$a = Article::ID(1);
+
+		$rows = $a->Author()->FileUploads()->where('id>?', 1)->Done();
+
+		$b = File::ID(2);
+		$c = File::ID(3);
+		$data = array($b, $c);
+
+		$this->assertEquals($rows, $data);
+	}
 
 
 	public function testToArray() {
