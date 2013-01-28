@@ -52,13 +52,20 @@ class RelationTest extends TestSetup {
 	public function testJoinFiltering() {
 		$a = Article::ID(1);
 
-		$rows = $a->Author()->FileUploads()->where('id>?', 1)->Done();
-
+		$rows = $a->Author()->FileUploads()->Where('id>?', 1)->Done();
 		$b = File::ID(2);
 		$c = File::ID(3);
 		$data = array($b, $c);
-
 		$this->assertEquals($rows, $data);
+
+		// Condensed version
+		$rows = $a->Author()->FileUploads('id>?', 2)->Done();
+		$c = File::ID(3);
+		$data = array($c);
+		$this->assertEquals($rows, $data);
+
+		// Feel like I need a better where clause builder to integrate with Norma
+		// And might want to support $a->Where_Author('...') to be able to filter from previous joins
 	}
 
 

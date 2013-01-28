@@ -274,16 +274,12 @@ class NormaFind {
 		$this->className = $name;
 		$this->where[] = $where;
 	}
+
+	// the logic here is screwy
 	public function __call($name, $args) {
-		if ($name == 'where') {
-			// Replace alias table and field names with 
-			$className = $this->className;
-			$this->where[] = array(
-				// Grr, having to use non-aliases creates a crappy dependency
-				$className::$table . '.' . $args[0],
-				$args[1]
-			);
-		} else {
+		// Joining
+		$parts = explode('_', $name);
+		if ($parts[0] != 'Where') {
 			// get current class
 			$className = $this->className;
 			// Tie previous class to new
@@ -297,7 +293,26 @@ class NormaFind {
 				
 			);
 			array_push($this->where, $r);
+			// New join table designates final output class, so update it
 			$this->className = $className2;
+		}
+		/*
+		Could also support $a->Where_FileUploads() to specify where clause for previously joined tables
+		*/
+		// Filtering previous join, or where while joining
+		if ($args || $parts[0] == 'Where') {
+			if ($parts[0] == 'Where') {
+				array_shift($parts);
+				$className = implode('_', $parts);
+			} else {
+				// Replace alias table and field names with 
+				$className = $this->className;
+			}
+			$this->where[] = array(
+				// Grr, having to use non-aliases creates a crappy dependency
+				$className::$table . '.' . $args[0],
+				$args[1]
+			);
 		}
 		return $this;
 	}
