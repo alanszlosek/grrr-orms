@@ -2,7 +2,6 @@
 require('setup.php');
 
 class RelationTest extends TestSetup {
-
 	public function testRelation() {
 		$a = Article::ID(1);
 		$thumb = $a->Thumbnail;
@@ -52,14 +51,15 @@ class RelationTest extends TestSetup {
 	public function testJoinFiltering() {
 		$a = Article::ID(1);
 
-		$rows = $a->Author()->FileUploads()->Where('id>?', 1)->Done();
+		// Confusing to be able to use aliases in the where clause ... ugh
+		$rows = $a->Author()->FileUploads()->Where('T.ID>?', 1)->Done();
 		$b = File::ID(2);
 		$c = File::ID(3);
 		$data = array($b, $c);
 		$this->assertEquals($rows, $data);
 
 		// Condensed version
-		$rows = $a->Author()->FileUploads('id>?', 2)->Done();
+		$rows = $a->Author()->FileUploads('T.ID>?', 2)->Done();
 		$c = File::ID(3);
 		$data = array($c);
 		$this->assertEquals($rows, $data);
@@ -118,6 +118,5 @@ class RelationTest extends TestSetup {
 		$data = File::ID(2);
 		$this->assertEquals($data, $cover);
 	}
-
 }
 

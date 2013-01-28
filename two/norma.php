@@ -276,10 +276,18 @@ class NormaFind {
 	}
 
 	// the logic here is screwy
+	// some of these are probably overkill
+	/*
+	Handles:
+	Article::Find(1)->Author()
+	Article::Find(1)->Author('T.Permission>?', 2)
+	Article::Find(1)->Author()->Where('T.Permission>?', 2)
+	Article::Find(1)->Author()->Files()->Where_Author('T.Permission>?', 2)
+	*/
 	public function __call($name, $args) {
-		// Joining
+
 		$parts = explode('_', $name);
-		if ($parts[0] != 'Where') {
+		if ($parts[0] != 'Where') { // Joining
 			// get current class
 			$className = $this->className;
 			// Tie previous class to new
@@ -295,24 +303,28 @@ class NormaFind {
 			array_push($this->where, $r);
 			// New join table designates final output class, so update it
 			$this->className = $className2;
+			$className = $this->className;
+		} else {
+			if ($name == 'Where') $className = $this->className;
+			else $className = implode('_', array_slice($parts, 1));
 		}
 		/*
 		Could also support $a->Where_FileUploads() to specify where clause for previously joined tables
 		*/
 		// Filtering previous join, or where while joining
-		if ($args || $parts[0] == 'Where') {
-			if ($parts[0] == 'Where') {
-				array_shift($parts);
-				$className = implode('_', $parts);
-			} else {
-				// Replace alias table and field names with 
-				$className = $this->className;
+		if ($args) {
+			$where = $args;
+			// Grr, having to use non-aliases creates a crappy dependency
+			$from = array();
+			$to = array();
+			foreach (array_keys($className::$aliases) as $alias) {
+				$from[] = 'T.' . $alias;
+				// escape this
+				$to[] = $className::$table . '.' . $className::$aliases[ $alias];
 			}
-			$this->where[] = array(
-				// Grr, having to use non-aliases creates a crappy dependency
-				$className::$table . '.' . $args[0],
-				$args[1]
-			);
+//var_dump($from);var_dump($to);exit;
+			$where[0] = str_replace($from, $to, $where[0]);
+			$this->where[] = $where;
 		}
 		return $this;
 	}
