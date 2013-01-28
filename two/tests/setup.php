@@ -143,10 +143,12 @@ class TestSetup extends PHPUnit_Framework_TestCase {
 			$sql[] = 'create unique index user_name on user (name)';
 		}
 
-		$sql[] = "insert into file (name, user_id) values('article-thumb.jpg', 1)";
-		$sql[] = "insert into file (name, user_id) values('article-cover.jpg', 1)";
-		$sql[] = "insert into file (name, user_id) values('article-large.jpg', 1)";
-		$sql[] = "insert into article (title, cover_id, thumbnail_id, author_id) values('test article', 2, 1, 1)";
+		$sql[] = "insert into file (name, user_id) values('article1-thumb.jpg', 1)";
+		$sql[] = "insert into file (name, user_id) values('article1-cover.jpg', 1)";
+		$sql[] = "insert into file (name, user_id) values('article2-thumb.jpg', 1)";
+		$sql[] = "insert into file (name, user_id) values('article2-cover.jpg', 1)";
+		$sql[] = "insert into article (title, cover_id, thumbnail_id, author_id) values('First Article', 2, 1, 1)";
+		$sql[] = "insert into article (title, cover_id, thumbnail_id, author_id) values('Second Article', 4, 3, 1)";
 		$sql[] = "insert into user (name) values('john day')";
 		foreach ($sql as $s) $db->execute( $s );
 	}

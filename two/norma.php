@@ -148,6 +148,11 @@ abstract class Norma {
 	public static function Find() {
 	}
 
+	public static function FromQuery($sql, $parameters = array()) {
+		$row = Norma::$dbFacile->fetchRow($sql, $parameters);
+		return new static($row, false);
+	}
+
 	// NOT SURE HOW THIS SHOULD FUNCTION YET
 	// Might need two separate functions ... we have aliases to translate or not. Hmm.
 	public function toArray() {

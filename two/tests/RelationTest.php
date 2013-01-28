@@ -8,7 +8,7 @@ class RelationTest extends TestSetup {
 		$this->assertEquals( get_class($thumb), 'File');
 		$data = array(
 			'id' => 1,
-			'name' => 'article-thumb.jpg',
+			'name' => 'article1-thumb.jpg',
 			'user_id' => 1
 		);
 		$this->assertEquals( $thumb->toArray(), $data);
@@ -30,7 +30,7 @@ class RelationTest extends TestSetup {
 
 	public function testForeignAlias() {
 		$a = Article::ID(1);
-		$this->assertEquals($a->CoverFileName, 'article-cover.jpg');
+		$this->assertEquals($a->CoverFileName, 'article1-cover.jpg');
 		$this->assertEquals($a->CoverImage->ID, 2);
 	}
 
@@ -43,7 +43,8 @@ class RelationTest extends TestSetup {
 		$b = File::ID(1);
 		$c = File::ID(2);
 		$d = File::ID(3);
-		$data = array($b, $c, $d);
+		$e = File::ID(4);
+		$data = array($b, $c, $d, $e);
 
 		$this->assertEquals($rows, $data);
 	}
@@ -55,12 +56,13 @@ class RelationTest extends TestSetup {
 		$rows = $a->Author()->FileUploads()->Where('T.ID>?', 1)->Done();
 		$b = File::ID(2);
 		$c = File::ID(3);
-		$data = array($b, $c);
+		$d = File::ID(4);
+		$data = array($b, $c, $d);
 		$this->assertEquals($rows, $data);
 
 		// Condensed version
-		$rows = $a->Author()->FileUploads('T.ID>?', 2)->Done();
-		$c = File::ID(3);
+		$rows = $a->Author()->FileUploads('T.ID>?', 3)->Done();
+		$c = File::ID(4);
 		$data = array($c);
 		$this->assertEquals($rows, $data);
 
@@ -77,7 +79,7 @@ class RelationTest extends TestSetup {
 
 		$data = array(
 			'id' => 1,
-			'title' => 'test article',
+			'title' => 'First Article',
 			'body' => '',
 			'thumbnail_id' => 1,
 			'cover_id' => 2,
@@ -99,7 +101,7 @@ class RelationTest extends TestSetup {
 		$a->CoverImage;
 		$data = array(
 			'id' => 1,
-			'title' => 'test article',
+			'title' => 'First Article',
 			'body' => '',
 			'thumbnail_id' => 1,
 			'cover_id' => 2,
@@ -117,6 +119,13 @@ class RelationTest extends TestSetup {
 
 		$data = File::ID(2);
 		$this->assertEquals($data, $cover);
+	}
+
+	public function testManualQuery() {
+		$a = Article::FromQuery('select * from article where id = 1');
+		$b = Article::ID(1);
+		
+		$this->assertEquals($b, $a);
 	}
 }
 
