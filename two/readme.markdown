@@ -6,8 +6,13 @@ Features
 * Set / get fields: $a->Title = 'New title';
 * Create() and Save()
 * Chain through to a related object: $a->Author->Address->State
-* Chain through to related objects (plural) using joins under the hood: $a->Author()->File()->Done() ... Gets all article author's files.
+* Chain through to related objects (plural) using joins under the hood: $a->Author()->File()->All() ... Gets all article author's files.
 * Create aliases to fields in far away objects (see $foreignAliases usage in tests/setup.php)
+* Load single/first row into object via query: $a = Article::QueryOne('select ...', $params)
+* Load multiple: $articles = Article::QueryMany('select ...', $params)
+* Load multiple via where clause: $rows = Article::WhereMany('...', $params)
+
+To load a single row, set up unique keys, or use FromQuery()
 
 Goals
 ====
