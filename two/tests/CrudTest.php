@@ -15,7 +15,7 @@ class CrudTest extends TestSetup {
 	public function testToArray() {
 		$data = array(
 			'id' => 1,
-			'title' => 'test article',
+			'title' => 'First Article',
 			'body' => '',
 			'thumbnail_id' => 1,
 			'cover_id' => 2,
@@ -31,7 +31,7 @@ class CrudTest extends TestSetup {
 	public function testInstantiateWithArray() {
 		$data = array(
 			'id' => 1,
-			'title' => 'test article',
+			'title' => 'First Article',
 			'body' => '',
 			'thumbnail_id' => 1,
 			'cover_id' => 2,
@@ -54,7 +54,7 @@ class CrudTest extends TestSetup {
 		);
 		$a = new Article($data);
 		$a->Create();
-		$this->assertEquals(2, $a->ID);
+		$this->assertEquals(3, $a->ID);
 	}
 
 	public function testCreate() {
@@ -142,7 +142,7 @@ class CrudTest extends TestSetup {
 	public function testExtending() {
 		$data = array(
 			'ID' => 1,
-			'Title' => 'test article',
+			'Title' => 'First Article',
 			'Body' => '',
 			'ThumbnailID' => 1,
 			'CoverID' => 2
@@ -224,7 +224,7 @@ class CrudTest extends TestSetup {
 	auto-increment. And Save() uses primary key in the where clause for the update, but we want neither! Wow. Thought
 	this would be simple.
 	*/
-	public function testCreateMultiKey() {
+	public function testMultiKey() {
 		$a = new Combo();
 		$a->Key1 = 1;
 		$a->Key2 = 2;
@@ -241,6 +241,33 @@ class CrudTest extends TestSetup {
 		$this->assertNotNull($c);
 		$this->assertEquals(1, $c->Key1);
 		$this->assertEquals(2, $c->Key2);
+
+		// Key1 and Key2 are primary key fields, both are required	
+		try {
+			$d = Combo::Key1(1);
+		} catch (Exception $e) {
+			$d = null;
+		}
+		$this->assertNull($d);
 	}
+
+	public function testUniqueKey() {
+		$a = UniqueKey::ID(1);
+		$b = UniqueKey::Key1(123);
+		$this->assertEquals($a, $b);
+	}
+
+
+/*
+	public function testFind() {
+		$one = Article::Find('id=1');
+		$a = array( Article::ID(1) );
+		$this->assertEquals($a, $one);
+
+		$one = Article::Find('id=1');
+		$a = array( Article::ID(1) );
+		$this->assertEquals($a, $one);
+	}
+*/
 }
 

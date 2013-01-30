@@ -113,6 +113,7 @@ abstract class Norma {
 		*/
 		$where = array();
 		$parameters = array();
+		// If any of the PKs are matched ... fail if not all are provided
 		if (sizeof($a) == sizeof($staticPK)) {
 			foreach($staticPK as $i => $key) {
 				$where[] = '`' . static::$aliases[ $key ] . '`=?';
@@ -121,11 +122,12 @@ abstract class Norma {
 		}
 		if (sizeof($b) == sizeof(static::$keys)){
 			foreach(static::$keys as $i => $key) {
-				$where[] = '`' . static::$aliases[ $key ] . '`';
+				$where[] = '`' . static::$aliases[ $key ] . '`=?';
 				$parameters[] = $args[ $i ];
 			}
 		}
 		if ($where) {
+			// list fields rather than *?
 			$sql = 'SELECT * FROM ' . static::$table . ' WHERE ' . implode(' AND ', $where);
 			$row = Norma::$dbFacile->fetchRow($sql, $parameters);
 			if (!$row) {
@@ -145,7 +147,14 @@ abstract class Norma {
 		$where = array('
 		$article = Article::Find(
 	*/
+	// need to accept parameters
 	public static function Find() {
+		return new NormaFind(get_called_class());
+	}
+	public static function FindMany($where = null, $parameters = array()) {
+		$n = new NormaFind(get_called_class());
+		if ($where) return $n->Where($where, $parameters);
+		return $n;
 	}
 
 	public static function FromQuery($sql, $parameters = array()) {
@@ -275,19 +284,19 @@ TODO
 class NormaFind {
 	protected $className = null;
 	protected $where = array();
-	public function __construct($name, $where) {
+	public function __construct($name, $where=array()) {
 		$this->className = $name;
-		$this->where[] = $where;
+		if ($where) $this->where[] = $where;
 	}
 
 	// the logic here is screwy
 	// some of these are probably overkill
 	/*
 	Handles:
-	Article::Find(1)->Author()
-	Article::Find(1)->Author('T.Permission>?', 2)
-	Article::Find(1)->Author()->Where('T.Permission>?', 2)
-	Article::Find(1)->Author()->Files()->Where_Author('T.Permission>?', 2)
+	Article::ID(1)->Author()
+	Article::ID(1)->Author('T.Permission>?', 2)
+	Article::ID(1)->Author()->Where('T.Permission>?', 2)
+	Article::ID(1)->Author()->Files()->Where_Author('T.Permission>?', 2)
 	*/
 	public function __call($name, $args) {
 
@@ -335,6 +344,20 @@ class NormaFind {
 	}
 
 	public function Done() {
+		return $this->Limit();
+	}
+	public function All() {
+		return $this->Limit();
+	}
+
+	// If returning First(), probably just want the actual object
+	// Hmm, semantics
+	public function First($n = 1) {
+		$rows = $this->Limit($n);
+		if ($n == 1) return array_shift($rows);
+		return $rows;
+	}
+	public function Limit($offset = 0, $limit = 0) {
 		$className = $this->className;
 		$table = $className::$table;
 
@@ -367,6 +390,10 @@ class NormaFind {
 			}
 		}
 		if ($wheres) $sql .= ' WHERE ' . implode(' AND ', $wheres);
+		if ($offset > 0) {
+			if ($limit > 0) $sql .= ' LIMIT ' . $offset . ',' . $limit;
+			else $sql .= ' LIMIT ' . $offset;
+		}
 		//var_dump($sql);var_dump($parameters);exit;
 
 		$rows = Norma::$dbFacile->fetchAll($sql, $parameters);

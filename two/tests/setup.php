@@ -104,6 +104,18 @@ class Combo extends Norma {
 	);
 }
 
+class UniqueKey extends Norma {
+	public static $table = 'uniqueKey';
+	public static $keys = array('Key1');
+	public static $aliases = array(
+		'ID' => 'id',
+		'Key1' => 'key1',
+		'Name' => 'name'
+	);
+}
+
+
+
 
 // Wee
 class TestSetup extends PHPUnit_Framework_TestCase {
@@ -117,6 +129,7 @@ class TestSetup extends PHPUnit_Framework_TestCase {
 		$sql[] = 'drop table if exists combo';
 		$sql[] = 'drop table if exists noPK';
 		$sql[] = 'drop table if exists nonAutoPK';
+		$sql[] = 'drop table if exists uniqueKey';
 		$sql[] = 'drop index if exists user_name';
 
 		if (get_class($db) == 'dbFacile_sqlite3') {
@@ -127,6 +140,7 @@ class TestSetup extends PHPUnit_Framework_TestCase {
 			$sql[] = 'create table combo (key1 integer, key2 integer, name varchar(255))';
 			$sql[] = 'create table noPK (id integer, name varchar(255))';
 			$sql[] = 'create table nonAutoPK (id integer, name varchar(255))';
+			$sql[] = 'create table uniqueKey (id integer primary key autoincrement, key1 integer, name varchar(255))';
 
 			$sql[] = 'create unique index user_name on user (name)';
 			$sql[] = 'create unique index nonAutoPK_id on nonAutoPK (id)';
@@ -139,6 +153,7 @@ class TestSetup extends PHPUnit_Framework_TestCase {
 			$sql[] = 'create table combo (key1 integer, key2 integer, name varchar(255))';
 			$sql[] = 'create table noPK (id integer, name varchar(255))';
 			$sql[] = 'create table nonAutoPK (id integer primary key, name varchar(255))';
+			$sql[] = 'create table uniqueKey (id integer primary key auto_increment, key1 integer, name varchar(255))';
 
 			$sql[] = 'create unique index user_name on user (name)';
 		}
@@ -150,6 +165,7 @@ class TestSetup extends PHPUnit_Framework_TestCase {
 		$sql[] = "insert into article (title, cover_id, thumbnail_id, author_id) values('First Article', 2, 1, 1)";
 		$sql[] = "insert into article (title, cover_id, thumbnail_id, author_id) values('Second Article', 4, 3, 1)";
 		$sql[] = "insert into user (name) values('john day')";
+		$sql[] = "insert into uniqueKey (key1, name) values(123, 'Special')";
 		foreach ($sql as $s) $db->execute( $s );
 	}
 }
