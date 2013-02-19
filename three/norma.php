@@ -139,6 +139,7 @@ abstract class Norma {
 		if ($where) {
 			// list fields rather than *?
 			$sql = 'SELECT * FROM `' . static::$table . '` WHERE ' . implode(' AND ', $where);
+			trigger_error('Norma SQL: ' . $sql, E_USER_NOTICE);
 			$row = Norma::$dbFacile->fetchRow($sql, $parameters);
 			if (!$row) {
 				return null;
@@ -168,6 +169,7 @@ abstract class Norma {
 	}
 
 	public static function FromQuery($sql, $parameters = array()) {
+		trigger_error('Norma SQL: ' . $sql, E_USER_NOTICE);
 		$row = Norma::$dbFacile->fetchRow($sql, $parameters);
 		return new static($row, false);
 	}
@@ -228,6 +230,7 @@ abstract class Norma {
 		// Is this correct to do?
 		// Don't some DBMSes support insert without values?
 		if (sizeof($data) == 0) return false; // If nothing to save, don't even try ... hmmm,
+		trigger_error('Norma Insert: ' . json_encode($data), E_USER_NOTICE);
 		$id = Norma::$dbFacile->insert($data, static::$table);
 		// $id will be false if insert fails. Up to programmer to care.
 		if ($id !== false && static::$pk && !is_array(static::$pk)) {
@@ -248,13 +251,18 @@ abstract class Norma {
 				$a->Delete();
 			}
 		}
-	
-		$pk = static::$aliases[ static::$pk ];
-		// Need to support multi PKs
-		$data = array(
-			$pk => $this->data[ $pk ]
-		);
-		return Norma::$dbFacile->Delete(static::$table, $data);
+
+		// Support single and multi-field primary keys
+		$staticPK = static::$pk;
+		$where = array();
+		if (!is_array($staticPK)) {
+			$staticPK = array($staticPK);
+		}
+		foreach($staticPK as $key) {
+			$where[ $key ] = $this->data[ static::$aliases[$key] ];
+		}
+		trigger_error('Deleting ' . static::$table . ' ' . json_encode($where), E_USER_NOTICE);
+		return Norma::$dbFacile->Delete(static::$table, $where);
 	}
 
 	public function Error() {
@@ -292,6 +300,7 @@ abstract class Norma {
 		}
 
 		// dbFacile update() returns affected rows
+		trigger_error('Norma update: ' . json_encode($data), E_USER_NOTICE);
 		$a = Norma::$dbFacile->update($data, static::$table, $where);
 		return $a;
 	}
@@ -361,7 +370,7 @@ class NormaFind implements Iterator {
 			$aliases = $className::Aliases();
 			$relationship = $relationships[ $name ];
 			$className2 = $relationship[1];
-			$aliases2 = $className2::Relationships();
+			$aliases2 = $className2::Aliases();
 			$r = array(
 				$className::Table(),
 				$aliases[ $relationship[0] ],
@@ -486,6 +495,7 @@ class NormaFind implements Iterator {
 
 		//var_dump($sql);var_dump($parameters);exit;
 		
+		trigger_error('Norma SQL: ' . $sql, E_USER_NOTICE);
 
 		$rows = Norma::$dbFacile->fetchAll($sql, $parameters);
 		$out = array();
