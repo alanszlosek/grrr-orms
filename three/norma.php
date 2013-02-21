@@ -229,7 +229,7 @@ abstract class Norma {
 		}
 		// Is this correct to do?
 		// Don't some DBMSes support insert without values?
-		if (sizeof($data) == 0) return false; // If nothing to save, don't even try ... hmmm,
+		//if (sizeof($data) == 0) return false; // If nothing to save, don't even try ... hmmm,
 		trigger_error('Norma Insert: ' . json_encode($data), E_USER_NOTICE);
 		$id = Norma::$dbFacile->insert($data, static::$table);
 		// $id will be false if insert fails. Up to programmer to care.
