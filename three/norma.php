@@ -434,7 +434,7 @@ class NormaFind implements Iterator {
 		$aliases = $className::Aliases();
 		foreach ($whereHash as $key => $value) {
 			// need to do proper escaping and quoting here
-			$field = $className::Table() . '.' . $aliases[ $key ];
+			$field = '`' . $className::Table() . '`.`' . $aliases[ $key ] . '`';
 			$this->whereHash[ $field ] = $value;
 		}
 	}
@@ -478,8 +478,8 @@ class NormaFind implements Iterator {
 			}
 		}
 
-		$wheres = array();
-		$parameters = array();
+		$wheres = $this->_where;
+		$parameters = $this->parameters;
 		foreach ($this->whereHash as $key => $value) {
 			// gotta figure out a way to designate whether to quote+escape
 			// probably should accept a type designation for aliases, then use '#' placeholders
