@@ -168,6 +168,11 @@ abstract class Norma {
 		return $n;
 	}
 
+	public static function FindQuery($sql, $parameters = array()) {
+		$n = new NormaFind(get_called_class());
+		$n->Query($sql, $parameters);
+		return $n;
+	}
 	public static function FromQuery($sql, $parameters = array()) {
 		trigger_error('Norma SQL: ' . $sql, E_USER_NOTICE);
 		$row = Norma::$dbFacile->fetchRow($sql, $parameters);
@@ -497,6 +502,11 @@ class NormaFind implements Iterator {
 		
 		trigger_error('Norma SQL: ' . $sql, E_USER_NOTICE);
 
+		$this->Query($sql, $parameters);
+	}
+
+	public function Query($sql, $parameters = array()) {
+		$className = $this->className;
 		$rows = Norma::$dbFacile->fetchAll($sql, $parameters);
 		$out = array();
 		foreach ($rows as $row) {
