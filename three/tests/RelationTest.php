@@ -2,7 +2,6 @@
 require('setup.php');
 
 class RelationTest extends TestSetup {
-	/*
 	public function testRelation() {
 		$a = Article::ID(1);
 		$thumb = $a->Thumbnail;
@@ -34,12 +33,11 @@ class RelationTest extends TestSetup {
 		$this->assertEquals($a->CoverFileName, 'article1-cover.jpg');
 		$this->assertEquals($a->CoverImage->ID, 2);
 	}
-*/
 
 	public function testJoins() {
 		$a = Article::ID(1);
 
-		$rows = $a->Author()->FileUploads()->End();
+		$rows = $a->Author()->FileUploads()->Rows();
 
 		$b = File::ID(1);
 		$c = File::ID(2);
@@ -50,29 +48,39 @@ class RelationTest extends TestSetup {
 		$this->assertEquals($rows, $data);
 	}
 
-/*
 	public function testJoinFiltering() {
 		$a = Article::ID(1);
+		$rows = $a->Author(array('ID'=>1))->Rows();
+		$data = array();
+		$data[] = User::ID(1);
+		$this->assertEquals($data, $rows);
+
+		$rows = $a->Author()->FileUploads(array('ID'=>2))->Rows();
 
 		// Confusing to be able to use aliases in the where clause ... ugh
-		$rows = $a->Author()->FileUploads()->Where('T.ID>?', 1)->Done();
-		$b = File::ID(2);
-		$c = File::ID(3);
-		$d = File::ID(4);
-		$data = array($b, $c, $d);
-		$this->assertEquals($rows, $data);
+		//$rows = $a->Author()->FileUploads(array('ID'=>array(2,3,4)))->Rows();
+		$data = array();
+		$data[] = File::ID(2);
+		/*
+		$data[] = File::ID(3);
+		$data[] = File::ID(4);
+		*/
+		$this->assertEquals($data, $rows);
 
+/*
 		// Condensed version
-		$rows = $a->Author()->FileUploads('T.ID>?', 3)->Done();
+		$rows = $a->Author()->FileUploads('ID>?', array(3))->Rows();
 		$c = File::ID(4);
 		$data = array($c);
 		$this->assertEquals($rows, $data);
+*/
 
 		// Feel like I need a better where clause builder to integrate with Norma
 		// And might want to support $a->Where_Author('...') to be able to filter from previous joins
 	}
 
 
+/*
 	public function testToArray() {
 		$a = Article::ID(1);
 		$a->Thumbnail;
