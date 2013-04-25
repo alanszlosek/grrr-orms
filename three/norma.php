@@ -1,5 +1,6 @@
-<?php 
+<?php
 
+// need to be able to inspect all intermediate steps of norma, no?
 abstract class Norma {
 	public static $dbFacile;
 	// You should declare these in derivative classes:
@@ -15,6 +16,8 @@ abstract class Norma {
 	protected $changed = array();
 	// This is where all of the database data lives ... keyed by DB FIELD NAMES, NOT ALIASES
 	protected $data = array();
+
+	public static $debug = false;
 
 	public function __construct($data = array(), $flagAsChanged = true) {
 		if (is_array($data)) {
@@ -139,7 +142,7 @@ abstract class Norma {
 		if ($where) {
 			// list fields rather than *?
 			$sql = 'SELECT * FROM `' . static::$table . '` WHERE ' . implode(' AND ', $where);
-			trigger_error('Norma SQL: ' . $sql, E_USER_NOTICE);
+			if (Norma::$debug) trigger_error('Norma SQL: ' . $sql, E_USER_NOTICE);
 			$row = Norma::$dbFacile->fetchRow($sql, $parameters);
 			if (!$row) {
 				return null;
@@ -174,7 +177,7 @@ abstract class Norma {
 		return $n;
 	}
 	public static function FromQuery($sql, $parameters = array()) {
-		trigger_error('Norma SQL: ' . $sql, E_USER_NOTICE);
+		if (Norma::$debug) trigger_error('Norma SQL: ' . $sql, E_USER_NOTICE);
 		$row = Norma::$dbFacile->fetchRow($sql, $parameters);
 		return new static($row, false);
 	}
@@ -235,7 +238,7 @@ abstract class Norma {
 		// Is this correct to do?
 		// Don't some DBMSes support insert without values?
 		//if (sizeof($data) == 0) return false; // If nothing to save, don't even try ... hmmm,
-		trigger_error('Norma Insert: ' . json_encode($data), E_USER_NOTICE);
+		if (Norma::$debug) trigger_error('Norma Insert: ' . json_encode($data), E_USER_NOTICE);
 		$id = Norma::$dbFacile->insert($data, static::$table);
 		// $id will be false if insert fails. Up to programmer to care.
 		if ($id !== false && static::$pk && !is_array(static::$pk)) {
@@ -266,7 +269,7 @@ abstract class Norma {
 		foreach($staticPK as $key) {
 			$where[ $key ] = $this->data[ static::$aliases[$key] ];
 		}
-		trigger_error('Deleting ' . static::$table . ' ' . json_encode($where), E_USER_NOTICE);
+		if (Norma::$debug) trigger_error('Deleting ' . static::$table . ' ' . json_encode($where), E_USER_NOTICE);
 		return Norma::$dbFacile->Delete(static::$table, $where);
 	}
 
@@ -305,7 +308,7 @@ abstract class Norma {
 		}
 
 		// dbFacile update() returns affected rows
-		trigger_error('Norma update: ' . json_encode($data), E_USER_NOTICE);
+		if (Norma::$debug) trigger_error('Norma update: ' . json_encode($data), E_USER_NOTICE);
 		$a = Norma::$dbFacile->update($data, static::$table, $where);
 		return $a;
 	}
@@ -443,9 +446,11 @@ class NormaFind implements Iterator {
 			$this->whereHash[ $field ] = $value;
 		}
 	}
+	
+	// Need a way to get the SQL
 
 	// Done with Find() and method chaining
-	protected function Finalize() {
+	public function SQL() {
 		$className = $this->className;
 		$table = $className::Table();
 
@@ -459,9 +464,9 @@ class NormaFind implements Iterator {
 		2 elements - string clause, parameters
 		*/
 
-		$parameters = array();
-		//var_dump($this->joins);
-
+		$wheres = $this->_where;
+		$parameters = $this->parameters;
+		
 		// JOINS ARE BROKEN NOW
 		foreach ($this->joins as $where) {
 			
@@ -483,8 +488,7 @@ class NormaFind implements Iterator {
 			}
 		}
 
-		$wheres = $this->_where;
-		$parameters = $this->parameters;
+		
 		foreach ($this->whereHash as $key => $value) {
 			// gotta figure out a way to designate whether to quote+escape
 			// probably should accept a type designation for aliases, then use '#' placeholders
@@ -499,8 +503,20 @@ class NormaFind implements Iterator {
 		if ($this->_limit) $sql .= ' LIMIT ' . $this->_limit;
 
 		//var_dump($sql);var_dump($parameters);exit;
+		/*
+		if ($table == 'categoryImage') {
+			var_dump($this->joins);exit;
+			die($sql);
+		}
+		*/
+		return array($sql, $parameters);
+	}
+	
+	// Done with Find() and method chaining
+	protected function Finalize() {
 		
-		trigger_error('Norma SQL: ' . $sql, E_USER_NOTICE);
+		list($sql, $parameters) = $this->SQL();
+		if (Norma::$debug) trigger_error('Norma SQL: ' . $sql, E_USER_NOTICE);
 
 		$this->Query($sql, $parameters);
 	}
