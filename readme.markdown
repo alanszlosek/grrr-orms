@@ -11,4 +11,4 @@ Requirements
 * PHP 5.3 and later
 * My dbFacile project
 
-Requirements: Since it leverages the great late static binding capabilities found in PHP 5.3 and later.
+I'm so thankful for late static bindings which arrived in PHP 5.3.

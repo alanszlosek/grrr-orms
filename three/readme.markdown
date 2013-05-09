@@ -10,11 +10,11 @@ Note: This documentation may be out of date. Please check the tests folder to be
 * Support for multi-field primary keys
 * Support for loading by unique key
 * Chain through to a related object: $a->Author->Address->State
-* Chain through to related objects (plural) using joins under the hood: $a->Author()->File()->All() ... Gets all article author's files.
+* Chain through to related objects (plural) using joins under the hood: $a->Author()->File(array('active'=>1))->Rows() ... Gets all article author's active files.
 * Create aliases to fields in far away objects (see $foreignAliases usage in tests/setup.php)
-* Load single/first row into object via query: $a = Article::QueryOne('select ...', $params)
-* Load multiple: $articles = Article::QueryMany('select ...', $params)
-* Load multiple via where clause: $rows = Article::WhereMany('...', $params)
+* Load single/first row into object via query: $a = Article::FromQuery('select ...', $params)
+* Load multiple: $articles = Article::FindQuery('select ...', $params)
+* Load multiple via associative array as the where clause: $rows = Article::Find(array('status'=>'published'))
 
 To load a single row, set up unique keys, or use FromQuery()
 
