@@ -1,6 +1,8 @@
 Features
 ====
 
+Note: This documentation may be out of date. Please check the tests folder to be sure, as that's where the latest API is featured.
+
 * Declare field aliases and relations as static variables of Norma-derived classes (see tests/setup.php for setup examples)
 * Load Article row having primary key of 123 via $a = Article::ID(123). $a will be null if 123 isn't found.
 * Set / get fields: $a->Title = 'New title';
