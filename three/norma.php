@@ -484,9 +484,12 @@ class NormaFind implements Iterator {
 			// gotta figure out a way to designate whether to quote+escape
 			// probably should accept a type designation for aliases, then use '#' placeholders
 			// dbFacile will take care of the rest
-			if (is_array($value)) $wheres[] = $key . ' IN (' . implode(',', $value) . ')';
-			else $wheres[] = $key . '=?';
-			$parameters[] = $value;
+			if (is_array($value)) {
+				$wheres[] = $key . ' IN (' . implode(',', $value) . ')';
+			} else {
+				$wheres[] = $key . '=?';
+				$parameters[] = $value;
+			}
 		}
 		if ($wheres) $sql .= ' WHERE ' . implode(' AND ', $wheres);
 		// be careful sql injection
