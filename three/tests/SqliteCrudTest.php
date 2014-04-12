@@ -1,7 +1,7 @@
 <?php
-include('CrudTests.php');
+include('CrudTest.php');
 
-class Sqlite3CrudTest extends CrudTests {
+class Sqlite3CrudTest extends CrudTest {
 	public static function setUpBeforeClass() {
 		$db = new dbFacile_sqlite3();
 		$db->open('./norma.sqlite');

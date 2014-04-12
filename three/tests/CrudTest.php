@@ -170,14 +170,7 @@ class CrudTest extends TestSetup {
 	// Test on table without a primary key
 	public function testNoPrimaryKey() {
 		$a = new NoPK();
-		// PK is required for Norma to operate correctly, but we don't specify one
-		// This won't fail, but we can't use the row afterwards
-		$b = $a->Create(); // should this fail?
-		$this->assertEquals(false, $b);
-
-		// Now we specify one
-		$a->ID = time();
-		$a->Name = 'no primary';
+		$a->Name = 'noPK';
 		$b = $a->Create();
 		$this->assertEquals(true, $b);
 
@@ -190,11 +183,14 @@ class CrudTest extends TestSetup {
 	// Test on table where primary key is not auto-generated
 	public function testNonAutoPrimaryKey() {
 		$a = new NonAutoPK();
-		$b = $a->Create(); // should this fail?
-		$this->assertEquals(false, $b);
-		$b = $a->Save(); // should this fail?
+		$this->assertEquals(true, $a->Create()); // This works because mysql will set the default to 0
+		$id = Norma::$dbFacile->fetchCell('select * from nonAutoPK');
+		$this->assertEquals(0, $id);
+		$b = $a->Save(); // This should probably fail, since a PK value was never supplied
 		$this->assertEquals(false, $b);
 		// Was the row created or not? Use dbFacile directly and find out
+		$id = Norma::$dbFacile->fetchCell('select * from nonAutoPK');
+		$this->assertEquals(0, $id);
 
 		// Now we specify a PK
 		$a->ID = 1234567;
@@ -274,5 +270,7 @@ class CrudTest extends TestSetup {
 		$this->assertEquals($a, $one);
 	}
 */
+
+    // test find with array of ids "id IN (1,2)"
 }
 

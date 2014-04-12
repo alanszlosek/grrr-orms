@@ -228,20 +228,11 @@ abstract class Norma {
 	// Still torn about whether this should go through Save() ...
 	public function Create() {
 		$data = $this->ChangedData();
-		// This is only valid for instances where primary key is auto-generated. For
-		// multi-field primary key it makes no sense.
-		if (static::$pk && !is_array(static::$pk)) {
-			$pk = static::$aliases[ static::$pk ];
-			// Remove primary key so database can auto-generate it
-			unset( $data[ $pk ] );
-		}
-		// Is this correct to do?
-		// Don't some DBMSes support insert without values?
-		//if (sizeof($data) == 0) return false; // If nothing to save, don't even try ... hmmm,
 		if (Norma::$debug) trigger_error('Norma Insert: ' . json_encode($data), E_USER_NOTICE);
 		$id = Norma::$dbFacile->insert($data, static::$table);
 		// $id will be false if insert fails. Up to programmer to care.
 		if ($id !== false && static::$pk && !is_array(static::$pk)) {
+			$pk = static::$aliases[ static::$pk ];
 			// $id will be true if insert succeeded but didn't generate an id
 			if ($id !== true) {
 				// why would we not always want to do this?
