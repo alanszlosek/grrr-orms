@@ -6,7 +6,7 @@ Note: This documentation may be out of date. Please check the tests folder to be
 * Declare field aliases and relations as static variables of Norma-derived classes (see tests/setup.php for setup examples)
 * Load Article row having primary key of 123 via $a = Article::ID(123). $a will be null if 123 isn't found.
 * Set / get fields: $a->Title = 'New title';
-* Create() and Save()
+* Create(), Save() and Delete()
 * Support for multi-field primary keys
 * Support for loading by unique key
 * Chain through to a related object: $a->Author->Address->State
@@ -42,14 +42,13 @@ Unfinished
 ====
 
 * Tweak dbFacile to expose escape+quoting methods for each DBMS
-* Delete()
 * toArray() needs to call toArray() on elements that are Norma objects
 
 Running the Unit Tests
 ====
 
-* Install PHPUnit (what a PITA)
-* Go into two/tests
+* Install PHPUnit
+* Go into three/tests
 * Run: phpunit CrudTest
 * Run: phpunit RelationTest 
 
