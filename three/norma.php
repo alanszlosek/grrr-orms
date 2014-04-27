@@ -410,8 +410,8 @@ class NormaFind implements Iterator {
 		$this->_orderBy = $str;
 		return $this;
 	}
-	public function Limit($limit) {
-		$this->_limit = $limit;
+	public function Limit($limit, $offset = 0) {
+		$this->_limit = $offset . ',' . $limit;
 		return $this;
 	}
 	
