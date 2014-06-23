@@ -4,16 +4,18 @@ Features
 Note: This documentation may be out of date. Please check the tests folder to be sure, as that's where the latest API is featured.
 
 * Declare field aliases and relations as static variables of Norma-derived classes (see tests/setup.php for setup examples)
-* Load Article row having primary key of 123 via $a = Article::ID(123). $a will be null if 123 isn't found.
-* Set / get fields: $a->Title = 'New title';
+* Load article having primary key of 123 via `$a = Article::ID(123)`. $a will be null if 123 isn't found.
+* Load using more than one field via `$a = Article::Timestamp_UserID(1231231233, 3)`. Pulls article row with that timestamp and user id.
+* Set / get fields: `$a->Title = 'New title';`
 * Create(), Save() and Delete()
 * Support for multi-field primary keys
 * Support for loading by unique key
 * Chain through to a related object: $a->Author->Address->State
-* Chain through to related objects (plural) using joins under the hood: $a->Author()->File(array('active'=>1))->Rows() ... Gets all article author's active files.
+* Chain through to related rows (plural) using joins under the hood: $a->Author()->File(array('active'=>1))->Rows() ... Gets all article author's active files.
+* Chain through to related objects (plural) using joins under the hood: $a->Author()->File(array('active'=>1))->Objects() ... Gets all article author's active files.
 * Create aliases to fields in far away objects (see $foreignAliases usage in tests/setup.php)
-* Load single/first row into object via query: $a = Article::FromQuery('select ...', $params)
-* Load multiple: $articles = Article::FindQuery('select ...', $params)
+* Load single/first object via query: $a = Article::FromQuery('select ...', $params)
+* Load multiple objects: $articles = Article::FindQuery('select ...', $params)
 * Load multiple via associative array as the where clause: $rows = Article::Find(array('status'=>'published'))
 
 To load a single row, set up unique keys, or use FromQuery()

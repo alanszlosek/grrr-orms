@@ -1,4 +1,11 @@
 <?php
+/*
+Create single insta
+
+THOUGHTS
+- Kinda sucks that data is indexed by db table name, not alias name. But that's because i wanted it to be easy to push data into an instance. Probably should index $this->data by alias in the near future, since that should shave some time off lookups for getting and setting. We'll be getting and setting fields more frequently than loading from the DB, so that might be a nice gain. I'm sure there was some reason that I went the other route, but can't recall now. Reminds me, I should probably
+  push the lookup into a method so I can easily change and test later.
+*/
 
 abstract class Norma {
 	public static $dbFacile;
@@ -6,7 +13,7 @@ abstract class Norma {
 	protected static $table = null;
 	protected static $aliases = array(); // key/value pairs: alias=>field_name_in_table
 	protected static $keys = array();
-	protected static $pk = 'ID'; // Default alias
+	protected static $pk = 'ID'; // Default alias. Will get converted to an array in static::GetPK().
 	protected static $relationships = array();
 	protected static $foreignAliases = array();
 	protected static $deleteTheseFirst = array();
@@ -33,6 +40,12 @@ abstract class Norma {
 		}
 	}
 
+	protected static function GetAliasMap($name) {
+		return static::$aliases[ $name ];
+	}
+	protected function GetData($name) {
+		return $this->data[ static::GetAliasMap($name) ];
+	}
 	public function __get($name) {
 		// Check data cache first, so arbitrary things can be attached to instances if need be
 		if (array_key_exists($name, $this->data)) {
@@ -41,12 +54,12 @@ abstract class Norma {
 		// Local field?
 		} elseif (array_key_exists($name, static::$aliases)) {
 			// might not have been pulled, but we don't care
-			return $this->data[ static::$aliases[ $name ] ];
+			return $this->GetData($name);
 
 		// Relationship?
 		} elseif (array_key_exists($name, static::$relationships)) {
 			$relation = static::$relationships[ $name ];
-			$v = $this->data[ static::$aliases[ $relation[0] ] ];
+			$v = $this->GetData($relation[0]);
 			$className = $relation[1];
 			$key = $relation[2];
 			// Load using specified key ... hope it's been declared as one
@@ -68,7 +81,7 @@ abstract class Norma {
 	public function __set($field, $value) {
 		// Perhaps prevent modifying primary key field(s), but that feels like baby-sitting ...
 		if (array_key_exists($field, static::$aliases)) { // Set field value
-			$field = static::$aliases[ $field ];
+			$field = $this->GetAliasMap($field);
 			$this->changed[] = $field; // Keep track of the actual DB field that we need to write
 		}
 		// This assignment is not within the above conditional so programmers can
@@ -82,21 +95,17 @@ abstract class Norma {
 	$users = $a->User()->GetAll();
 	*/
 	public function __call($name, $args) {
-		// THIS IS BROKEN NOW
 		if (array_key_exists($name, static::$relationships)) {
 			$relationship = static::$relationships[ $name ];
 			// Pass in current join fields and values
-			$whereHash = array(
-				// Value from local object
-				// We probably need a $this->dataByAlias($relationship[0]) method
-				$relationship[2] => $this->data[ static::$aliases[ $relationship[0] ] ]
-			);
-			//var_dump($whereHash);exit;
-			if ($args) {
-				foreach ($args as $arg) {
-					$whereHash = array_merge($whereHash, $arg);
-				}
+			$whereHash = array();
+			// Assume each arg is a whereHash
+			foreach ($args as $arg) {
+				$whereHash = array_merge($whereHash, $arg);
 			}
+			// Value from local object
+			// We probably need a $this->dataByAlias($relationship[0]) method
+			$whereHash [ $relationship[2] ] = $this->GetData($relationship[0]);
 			// Pass relationship class name as first param
 			return new NormaFind($relationship[1], $whereHash);
 		}
@@ -109,31 +118,27 @@ abstract class Norma {
 		// We do allow lookup by more than 1 field, but that assumes our aliases don't have underscores
 		$fields = explode('_', $name);
 		// Maybe we need static::getPK() so we can always return an array, and make sure it's set as such
-		$staticPK = (is_array(static::$pk) ? static::$pk : array(static::$pk));
+		$staticPK = static::GetPK();
 		$a = array_intersect($staticPK, $fields);
 		$b = array_intersect(static::$keys, $fields); // lookup by other keys? i'm confused
-		/*
-		if ($name == static::$pk || in_array($name, static::$keys)) {
-			$sql = static::MakeSql($name, $args[0]);
-		*/
 		$where = array();
 		$parameters = array();
 		// If any of the PKs are matched ... fail if not all are provided
 		if (sizeof($a) == sizeof($staticPK)) {
 			foreach($staticPK as $i => $key) {
-				$where[] = '`' . static::$aliases[ $key ] . '`=?';
+				$where[] = $this->quoteField(static::GetAliasMap($key)) . '=?';
 				$parameters[] = $args[ $i ];
 			}
 		}
 		if (sizeof($b) == sizeof(static::$keys)){
 			foreach(static::$keys as $i => $key) {
-				$where[] = '`' . static::$aliases[ $key ] . '`=?';
+				$where[] = $this->quoteField(static::GetAliasMap($key)) . '=?';
 				$parameters[] = $args[ $i ];
 			}
 		}
 		if ($where) {
 			// list fields rather than *?
-			$sql = 'SELECT * FROM `' . static::$table . '` WHERE ' . implode(' AND ', $where);
+			$sql = 'SELECT * FROM ' . $this->quoteField(static::$table) . ' WHERE ' . implode(' AND ', $where);
 			if (Norma::$debug) trigger_error('Norma SQL: ' . $sql, E_USER_NOTICE);
 			$row = Norma::$dbFacile->fetchRow($sql, $parameters);
 			if (!$row) {
@@ -157,15 +162,11 @@ abstract class Norma {
 	public static function Find($where = array(), $limit = null, $order = null) {
 		return new NormaFind(get_called_class(), $where);
 	}
-	public static function FindMany($where = null, $parameters = array()) {
-		$n = new NormaFind(get_called_class());
-		if ($where) return $n->Where($where, $parameters);
-		return $n;
-	}
 
-	public static function FindQuery($sql, $parameters = array()) {
+	// $sql...
+	public static function FindQuery() {
 		$n = new NormaFind(get_called_class());
-		$n->Query($sql, $parameters);
+		$n->Query(func_get_args());
 		return $n;
 	}
 	public static function FromQuery($sql, $parameters = array()) {
@@ -203,9 +204,6 @@ abstract class Norma {
 	}
 
 	// Alphabetical
-	public static function Aliases() {
-		return static::$aliases;
-	}
 	protected function ChangedData() {
 		$data = array();
 		foreach ($this->changed as $field) {
@@ -222,10 +220,12 @@ abstract class Norma {
 	public function Create() {
 		$data = $this->ChangedData();
 		if (Norma::$debug) trigger_error('Norma Insert: ' . json_encode($data), E_USER_NOTICE);
-		$id = Norma::$dbFacile->insert($data, static::$table);
+		$id = Norma::$dbFacile->insert(static::$table, $data);
 		// $id will be false if insert fails. Up to programmer to care.
-		if ($id !== false && static::$pk && !is_array(static::$pk)) {
-			$pk = static::$aliases[ static::$pk ];
+		// There should be auto-key-gen if PK isn't 1, right?
+		$staticPK = static::GetPK();
+		if ($id !== false && sizeof($staticPK) == 1) {
+			$pk = static::GetAliasMap($staticPK);
 			// $id will be true if insert succeeded but didn't generate an id
 			if ($id !== true) {
 				// why would we not always want to do this?
@@ -245,13 +245,10 @@ abstract class Norma {
 		}
 
 		// Support single and multi-field primary keys
-		$staticPK = static::$pk;
 		$where = array();
-		if (!is_array($staticPK)) {
-			$staticPK = array($staticPK);
-		}
+		$staticPK = static::GetPK();
 		foreach($staticPK as $key) {
-			$where[ $key ] = $this->data[ static::$aliases[$key] ];
+			$where[ $key ] = $this->GetData($key);
 		}
 		if (Norma::$debug) trigger_error('Deleting ' . static::$table . ' ' . json_encode($where), E_USER_NOTICE);
 		return Norma::$dbFacile->Delete(static::$table, $where);
@@ -260,48 +257,45 @@ abstract class Norma {
 	public function Error() {
 		return Norma::$dbFacile->error();
 	}
-	
-	protected static function MakeSql($alias, $value) {
-		// To hell with doing field mappings in the SQL, because:
-		// If we're doing something special under the hood, we can't allow programmers to
-		// customize the SQL and still have it work with Norma. Want to keep it simple,
-		// and not do anything unexpected. If a coder wants to write a custom WHERE
-		// clause and pass it to Norma, I'd like to let him. Granted, we have no mechanism
-		// for doing so yet.
-		$sql = 'SELECT * FROM `' . static::$table . '` WHERE ';
-		$sql .= '`' . static::$aliases[ $alias ] . '`=' . $value;
-		return $sql;	
-	}
 
 	// Torn between Create() and Update() or just Save()
 	public function Save() {
 		// We support Create() for objects without a primary key, but not Save()
-		$staticPK = static::$pk;
-		if ($staticPK == false) return false;
+		if (static::GetPK() == false) return false;
 		$data = $this->ChangedData();
 		// There was nothing to save
 		if (sizeof($data) == 0) return false;
 
 		// Support single and multi-field primary keys
 		$where = array();
-		if (!is_array($staticPK)) {
-			$staticPK = array($staticPK);
-		}
+		$staticPK = static::GetPK();
 		foreach($staticPK as $key) {
-			$where[ $key ] = $this->data[ static::$aliases[$key] ];
+			$where[ $key ] = $this->GetData($key);
 		}
 
 		// dbFacile update() returns affected rows
 		if (Norma::$debug) trigger_error('Norma update: ' . json_encode($data), E_USER_NOTICE);
-		$a = Norma::$dbFacile->update($data, static::$table, $where);
+		$a = Norma::$dbFacile->update(static::$table, $data, $where);
 		return $a;
 	}
 	
-	public static function Relationships() {
-		return static::$relationships;
+	public static function Relationship( $name ) {
+		return static::$relationships[ $name ];
 	}
 	public static function Table() {
 		return static::$table;
+	}
+	public static function Alias($name) {
+		return static::$aliases[ $name ];
+	}
+	public static function Aliases() {
+		return static::$aliases;
+	}
+	public static function GetPK() {
+		if (static::$pk !== false && !is_array(static::$pk)) {
+			static::$pk = array(static::$pk);
+		}
+		return static::$pk;
 	}
 }
 
@@ -322,7 +316,6 @@ class NormaFind implements Iterator {
 	protected $joins = array();
 	protected $whereHash = array();
 	protected $_where = array();
-	protected $parameters = array();
 	protected $_limit;
 	protected $_orderBy;
 	
@@ -347,54 +340,31 @@ class NormaFind implements Iterator {
 	/*
 	Handles:
 	Article::ID(1)->Author()
-	Article::ID(1)->Author('T.Permission>?', 2)
-	Article::ID(1)->Author()->Where('T.Permission>?', 2)
-	Article::ID(1)->Author()->Files()->Where_Author('T.Permission>?', 2)
+	FUCK QUERY STRINGS IN JOINS
+	AND FUCK Where() syntax
 	*/
 	public function __call($name, $args) {
+		// get current class
+		$className = $this->className;
+		// Tie previous class to new
+		$relationship = $className::$relationships[ $name ];
+		$className2 = $relationship[1];
+		$r = array(
+			$className::Table(),
+			$className::Alias( $relationship[0] ),
+			$className2::Table(),
+			$className2::Alias( $relationship[2] ),
+			
+		);
+		$this->joins[] = $r;
+		// New join table designates final output class, so update it
+		$this->className = $className2;
+		$className = $this->className;
 
-		$parts = explode('_', $name);
-		if ($parts[0] != 'Where') { // Joining
-			// get current class
-			$className = $this->className;
-			// Tie previous class to new
-			$relationships = $className::Relationships();
-			$aliases = $className::Aliases();
-			$relationship = $relationships[ $name ];
-			$className2 = $relationship[1];
-			$aliases2 = $className2::Aliases();
-			$r = array(
-				$className::Table(),
-				$aliases[ $relationship[0] ],
-				$className2::Table(),
-				$aliases2[ $relationship[2] ],
-				
-			);
-			$this->joins[] = $r;
-			// New join table designates final output class, so update it
-			$this->className = $className2;
-			$className = $this->className;
-		} else {
-			if ($name == 'Where') $className = $this->className;
-			else $className = implode('_', array_slice($parts, 1));
-		}
-		/*
-		Could also support $a->Where_FileUploads() to specify where clause for previously joined tables
-		*/
-		// Filtering previous join, or where while joining
 		if ($args) {
 			foreach ($args as $arg) {
 				$this->MergeWhereHash($arg);
 			}
-		}
-		return $this;
-	}
-	
-	public function Where($sql, $parameters=array()) {
-		$this->_where[] = $sql;
-		// array_merge?
-		foreach ($parameters as $param) {
-			$this->parameters[] = $param;
 		}
 		return $this;
 	}
@@ -408,6 +378,10 @@ class NormaFind implements Iterator {
 		return $this;
 	}
 	
+	public function Objects() {
+		$this->Done();
+		return $this->data;
+	}
 	public function Rows() {
 		$this->Done();
 		return $this->data;
@@ -421,12 +395,9 @@ class NormaFind implements Iterator {
 	// Fixup where clause according to class name
 	protected function MergeWhereHash($whereHash, $className = null) {
 		if (!$className) $className = $this->className;
-		
-		// Read aliases from public method
-		$aliases = $className::Aliases();
 		foreach ($whereHash as $key => $value) {
 			// need to do proper escaping and quoting here
-			$field = '`' . $className::Table() . '`.`' . $aliases[ $key ] . '`';
+			$field = $this->escapeField($className::Table(), $className::Alias($key));
 			$this->whereHash[ $field ] = $value;
 		}
 	}
@@ -434,13 +405,13 @@ class NormaFind implements Iterator {
 	// Need a way to get the SQL
 
 	// Done with Find() and method chaining
-	public function SQL() {
+	public function MakeQueryParts() {
 		$className = $this->className;
 		$table = $className::Table();
 
 		// What a pain to have to do field aliases in the SQL. ugh
 		// backtick these values
-		$sql = 'SELECT `' . $table . '`.* from `' . $table . '`';
+		$sql = 'SELECT ' . $this->quoteField($table) . '.* from ' . $this->quoteField($table);
 		/*
 		Thinking I can support all I need by identifying the type of where clause
 		4 elements - join
@@ -448,68 +419,65 @@ class NormaFind implements Iterator {
 		2 elements - string clause, parameters
 		*/
 
-		$wheres = $this->_where;
-		$parameters = $this->parameters;
-		
+		$wheres = array();
 		foreach ($this->joins as $where) {
 			$sz = sizeof($where);
 			if ($sz == 4) {
-				$sql .= ' LEFT JOIN `' . $where[0] . '` ON (`'
-					. $where[0] . '`.`' . $where[1]
-					. '`=`'
-					. $where[2] . '`.`' . $where[3]
-					. '`)';
+				$sql .= ' LEFT JOIN ' . $this->quoteField($where[0]) . ' ON ('
+					. $this->quoteField($where[0], $where[1])
+					. '='
+					. $this->quoteField($where[2], $where[3])
+					. ')';
 			} elseif ($sz == 3) {
-				$sql .= ' LEFT JOIN `' . $where[0] . '`';
-				$wheres[] = '`' . $where[0] . '`.`' . $where[1] . '`=?';
-				$parameters[] = $where[2];
+				$sql .= ' LEFT JOIN ' . $this->quoteField($where[0]);
+				$wheres[] = $this->quoteField($where[0], $where[1]) = '=';
+				$wheres[] = $where[2];
 			}
 		}
+		// need to add where IN support to dbFacile
 
-		
-		foreach ($this->whereHash as $key => $value) {
-			// gotta figure out a way to designate whether to quote+escape
-			// probably should accept a type designation for aliases, then use '#' placeholders
-			// dbFacile will take care of the rest
-			if (is_array($value)) {
-				$wheres[] = $key . ' IN (' . implode(',', $value) . ')';
-			} else {
-				$wheres[] = $key . '=?';
-				$parameters[] = $value;
-			}
+		// bah, fucking string building
+		if ($wheres) {
+			$sql .= ' WHERE ' . implode(' AND ', $wheres);
+			/*
+			array(
+				'select ... WHERE firstfield=',
+				'value'
+			*/
 		}
-		if ($wheres) $sql .= ' WHERE ' . implode(' AND ', $wheres);
 		// be careful sql injection
 		if ($this->_orderBy) $sql .= ' ORDER BY ' . $this->_orderBy;
 		if ($this->_limit) $sql .= ' LIMIT ' . $this->_limit;
 
 		//var_dump($sql);var_dump($parameters);exit;
-		/*
-		if ($table == 'categoryImage') {
-			var_dump($this->joins);exit;
-			die($sql);
-		}
-		*/
 		return array($sql, $parameters);
 	}
 	
 	// Done with Find() and method chaining
 	protected function Finalize() {
 		
-		list($sql, $parameters) = $this->SQL();
+		$parts = $this->MakeQueryParts();
 		if (Norma::$debug) trigger_error('Norma SQL: ' . $sql, E_USER_NOTICE);
 
-		$this->Query($sql, $parameters);
+		$this->Query($parts);
 	}
 
-	public function Query($sql, $parameters = array()) {
+	public function Query($queryParts) {
 		$className = $this->className;
-		$rows = Norma::$dbFacile->fetchAll($sql, $parameters);
+		$rows = call_user_func_array(array(Norma::$dbFacile, 'fetchAll'), $queryParts);
 		$out = array();
 		foreach ($rows as $row) {
 			$out[] = new $className($row, false);
 		}
 		$this->data = $out;
+	}
+
+	protected function quoteField($field, $field2 = null) {
+		if ($field2) {
+			return Norma::$dbFacile->quoteField($field) . '.' . Norma::$dbFacile->quoteField($field2);
+		} else {
+			return Norma::$dbFacile->quoteField($field);
+		}
 	}
 
 
