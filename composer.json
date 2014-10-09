@@ -1,0 +1,13 @@
+{
+    "name": "grrr-orms",
+    "repositories": [
+    ],
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/alanszlosek/dbFacile"
+        }
+    ],
+    "require": {
+        "alanszlosek/dbFacile": "master"
+    }
