@@ -120,17 +120,21 @@ class CrudTest extends TestSetup
     }
 */
 
+
     public function testCreateFailure()
     {
         $u = new User();
         $u->Name = 'Woowoo'; // Existing name, which must be unique
         // SQLite triggers an error, but PHPUnit converts it into an Exception
         // Supress the error so it doesn't get turned into an Exception
-        $a = $u->Create();
-        $this->assertEquals(false, $a);
-        if (get_class(Norma::$dbFacile) == 'dbFacile_sqlite3') {
+        try {
+            $a = $u->Create();
+        } catch(\Exception $e) {
+        }
+        $this->assertEquals(false, isset($a));
+        if (get_class(\Norma\Norma::$dbFacile) == 'dbFacile\\sqlite3') {
             $this->assertEquals('column name is not unique', $u->Error());
-        } elseif (get_class(Norma::$dbFacile) == 'dbFacile_mysql') {
+        } elseif (get_class(\Norma\Norma::$dbFacile) == 'dbFacile\\mysql') {
             $this->assertEquals("Duplicate entry 'Woowoo' for key 'user_name'", $u->Error());
         }
     }
@@ -200,6 +204,7 @@ class CrudTest extends TestSetup
     public function testNonAutoPrimaryKey()
     {
         $a = new NonAutoPK();
+        // fails on sqlite3
         $this->assertEquals(true, $a->Create()); // This works because mysql will set the default to 0
         $id = Norma::$dbFacile->fetchCell('select * from nonAutoPK');
         $this->assertEquals(0, $id);
@@ -241,6 +246,8 @@ class CrudTest extends TestSetup
     auto-increment. And Save() uses primary key in the where clause for the update, but we want neither! Wow. Thought
     this would be simple.
     */
+
+/*
     public function testMultiKey()
     {
         $a = new Combo();
@@ -275,6 +282,7 @@ class CrudTest extends TestSetup
         $b = UniqueKey::Key1(123);
         $this->assertEquals($a->ID, $b->ID);
     }
+*/
 
 
 /*

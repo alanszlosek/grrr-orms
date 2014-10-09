@@ -1,4 +1,6 @@
 <?php
+namespace Norma;
+
 /*
 Create single insta
 
@@ -151,32 +153,30 @@ abstract class Norma
         $a = array_intersect($staticPK, $fields);
         $b = array_intersect(static::$keys, $fields); // lookup by other keys? i'm confused
         $where = array();
-        $parameters = array();
         // If any of the PKs are matched ... fail if not all are provided
         if (sizeof($a) == sizeof($staticPK)) {
             foreach ($staticPK as $i => $key) {
-                $where[] = $this->quoteField(static::GetAliasMap($key)) . '=?';
-                $parameters[] = $args[ $i ];
+                // should be quoteValue
+                $where[] = static::quoteField(static::GetAliasMap($key)) . '=' . static::$dbFacile->quoteEscapeString($args[$i]);
             }
         }
         if (sizeof($b) == sizeof(static::$keys)) {
             foreach (static::$keys as $i => $key) {
-                $where[] = $this->quoteField(static::GetAliasMap($key)) . '=?';
-                $parameters[] = $args[ $i ];
+                $where[] = static::quoteField(static::GetAliasMap($key)) . '=' . static::$dbFacile->quoteEscapeString($args[$i]);
             }
         }
         if ($where) {
             // list fields rather than *?
-            $sql = 'SELECT * FROM ' . $this->quoteField(static::$table) . ' WHERE ' . implode(' AND ', $where);
+            $sql = 'SELECT * FROM ' . static::quoteField(static::$table) . ' WHERE ' . implode(' AND ', $where);
             if (Norma::$debug) trigger_error('Norma SQL: ' . $sql, E_USER_NOTICE);
-            $row = Norma::$dbFacile->fetchRow($sql, $parameters);
+            $row = Norma::$dbFacile->fetchRow($sql);
             if (!$row) {
                 return null;
             } else {
                 return new static($row, false);
             }
         } else {
-            throw new Exception('Expected ' . $name . ' to be primary or unique key');
+            throw new \Exception('Expected ' . $name . ' to be primary or unique key');
         }
 
         return null;
@@ -268,7 +268,7 @@ abstract class Norma
         // There should be auto-key-gen if PK isn't 1, right?
         $staticPK = static::GetPK();
         if ($id !== false && sizeof($staticPK) == 1) {
-            $pk = static::GetAliasMap($staticPK);
+            $pk = static::GetAliasMap($staticPK[0]);
             // $id will be true if insert succeeded but didn't generate an id
             if ($id !== true) {
                 // why would we not always want to do this?
@@ -345,11 +345,23 @@ abstract class Norma
     }
     public static function GetPK()
     {
-        if (static::$pk !== false && !is_array(static::$pk)) {
+        if (static::$pk === false) {
+            // not sure i like the side-effects of this, but it's handy
+            static::$pk = array();
+        } elseif(!is_array(static::$pk)) {
             static::$pk = array(static::$pk);
         }
 
         return static::$pk;
+    }
+
+    public static function quoteField($field, $field2 = null)
+    {
+        if ($field2) {
+            return Norma::$dbFacile->quoteField($field) . '.' . Norma::$dbFacile->quoteField($field2);
+        } else {
+            return Norma::$dbFacile->quoteField($field);
+        }
     }
 }
 
@@ -365,7 +377,7 @@ TODO
     * How to specify the class that should ultimately be instantiated for each resulting row?
 
 */
-class NormaFind implements Iterator
+class NormaFind implements \Iterator
 {
     protected $className = null;
     protected $joins = array();
@@ -489,7 +501,7 @@ class NormaFind implements Iterator
 
         // What a pain to have to do field aliases in the SQL. ugh
         // backtick these values
-        $sql = 'SELECT ' . $this->quoteField($table) . '.* from ' . $this->quoteField($table);
+        $sql = 'SELECT ' . \Norma\Norma::quoteField($table) . '.* from ' . \Norma\Norma::quoteField($table);
         /*
         Thinking I can support all I need by identifying the type of where clause
         4 elements - join
@@ -501,14 +513,14 @@ class NormaFind implements Iterator
         foreach ($this->joins as $where) {
             $sz = sizeof($where);
             if ($sz == 4) {
-                $sql .= ' LEFT JOIN ' . $this->quoteField($where[0]) . ' ON ('
-                    . $this->quoteField($where[0], $where[1])
+                $sql .= ' LEFT JOIN ' . \Norma\Norma::quoteField($where[0]) . ' ON ('
+                    . \Norma\Norma::quoteField($where[0], $where[1])
                     . '='
-                    . $this->quoteField($where[2], $where[3])
+                    . \Norma\Norma::quoteField($where[2], $where[3])
                     . ')';
             } elseif ($sz == 3) {
-                $sql .= ' LEFT JOIN ' . $this->quoteField($where[0]);
-                $wheres[] = $this->quoteField($where[0], $where[1]) = '=';
+                $sql .= ' LEFT JOIN ' . \Norma\Norma::quoteField($where[0]);
+                $wheres[] = \Norma\Norma::quoteField($where[0], $where[1]) . '=';
                 $wheres[] = $where[2];
             }
         }
@@ -527,7 +539,6 @@ class NormaFind implements Iterator
         if ($this->_orderBy) $sql .= ' ORDER BY ' . $this->_orderBy;
         if ($this->_limit) $sql .= ' LIMIT ' . $this->_limit;
 
-        //var_dump($sql);var_dump($parameters);exit;
         return array($sql, $parameters);
     }
 
@@ -551,14 +562,7 @@ class NormaFind implements Iterator
         $this->data = $out;
     }
 
-    protected function quoteField($field, $field2 = null)
-    {
-        if ($field2) {
-            return Norma::$dbFacile->quoteField($field) . '.' . Norma::$dbFacile->quoteField($field2);
-        } else {
-            return Norma::$dbFacile->quoteField($field);
-        }
-    }
+
 
     protected function Done()
     {

@@ -1,7 +1,9 @@
 {
-    "name": "grrr-orms",
-    "repositories": [
-    ],
+    "name": "alanszlosek/grrr-orms",
+    "description": "screw you, composer",
+    "autoload": {
+        "psr-4": {"Norma\\": "four/"}
+    },
     "repositories": [
         {
             "type": "vcs",
@@ -9,5 +11,7 @@
         }
     ],
     "require": {
-        "alanszlosek/dbFacile": "master"
-    }
+        "alanszlosek/dbfacile": "@dev"
+    },
+    "minimum-stability": "dev"
+}
