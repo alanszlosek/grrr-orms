@@ -71,6 +71,12 @@ abstract class Norma
     {
         return $this->data[ static::GetAliasMap($name) ];
     }
+    public static function GetRelationships($key = null) {
+        if (is_null($key)) {
+            return static::$relationships;
+        }
+        return static::$relationships[$key];
+    }
     public function __get($name)
     {
         // Check data cache first, so arbitrary things can be attached to instances if need be
@@ -418,7 +424,7 @@ class NormaFind implements \Iterator
         // get current class
         $className = $this->className;
         // Tie previous class to new
-        $relationship = $className::$relationships[ $name ];
+        $relationship = $className::GetRelationships($name);
         $className2 = $relationship[1];
         $r = array(
             $className::Table(),
