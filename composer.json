@@ -2,7 +2,7 @@
     "name": "alanszlosek/grrr-orms",
     "description": "screw you, composer",
     "autoload": {
-        "psr-4": {"Norma\\": "four/"}
+        "psr-4": {"Norma\\": "src/Norma/"}
     },
     "repositories": [
         {

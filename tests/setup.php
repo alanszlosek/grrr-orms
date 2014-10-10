@@ -1,17 +1,5 @@
 <?php
-include '../../vendor/autoload.php';
-/*
-include '/home/alan/coding/projects/dbFacile/src/dbFacile_sqlite3.php';
-$db = new dbFacile_sqlite3();
-$db->open('./norma.sqlite');
-*/
-
-// this won't be necessary, soon
-/*
-$db = new \dbFacile\mysqli();
-$db->open('norma', 'norma', 'norma');
-Norma\Norma::$dbFacile = $db;
-*/
+include '../vendor/autoload.php';
 
 class Article extends \Norma\Norma
 {
