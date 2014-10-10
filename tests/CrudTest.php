@@ -310,6 +310,10 @@ class CrudTest extends TestSetup
         $find = Article::Find();
         // 3 because we don't clear out the DB before each test method
         $this->assertEquals(3, count($find));
+
+        // Test OrderBy() and Limit()
+        $rows = Article::Find()->OrderBy('ID', 'desc')->Limit(2);
+        $this->assertEquals(3, $rows[0]->ID);
     }
 
     public function testFromQuery() {

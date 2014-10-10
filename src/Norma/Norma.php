@@ -2,7 +2,6 @@
 namespace Norma;
 
 /*
-Create single insta
 
 THOUGHTS
 - Kinda sucks that data is indexed by db table name, not alias name. But that's because i wanted it to be easy to push data into an instance. Probably should index $this->data by alias in the near future, since that should shave some time off lookups for getting and setting. We'll be getting and setting fields more frequently than loading from the DB, so that might be a nice gain. I'm sure there was some reason that I went the other route, but can't recall now. Reminds me, I should probably
@@ -11,34 +10,24 @@ THOUGHTS
 
 OrderBy should take two params normally, but if doing joins require params in multiples of 3. Class name, alias, direction
 
-Limit() is like DDB limit.
-
-Object() / First() use limit(1) internally.
-
-Objects()
-
 Decided that allowing string where clauses is too much trouble. Use where hashes, or roll your own query for FindQuery().
 Wonder if Find() should take where hash, or full query string. Rather, be more specific:
 
-Article::Where()->Objects()
-Article::Query($sql)->Object()
-Article::Select($where) or query string
-Maybe Find() makes sense after all
-Article::OrderBy()->Objects()
-Article::Limit(3)->Objects()
+$firstArticle = Article::FromQuery($sql);
+$articles = Article::Find()->OrderBy('ID', 'desc')->Limit(3)
 */
 
 abstract class Norma
 {
     public static $dbFacile;
-    // You should declare these in derivative classes:
+    // You should declare these in child classes:
     protected static $table = null;
     protected static $aliases = array(); // key/value pairs: alias=>field_name_in_table
-    protected static $keys = array();
+    protected static $keys = array(); // Other table indexes we can use for lookups
     protected static $pk = 'ID'; // Default alias. Will get converted to an array in static::GetPK().
     protected static $relationships = array();
     protected static $foreignAliases = array();
-    protected static $deleteTheseFirst = array();
+    protected static $deleteTheseRelationshipsFirst = array(); // Corresponds to keys in static::$relationships
 
     // $changed allows us to perform UPDATE queries on only those fields that have changed
     protected $changed = array(); // Holds DB FIELD NAMES, NOT ALIASES
@@ -52,7 +41,6 @@ abstract class Norma
         if (is_array($data)) {
             $this->data = $data; // merge in data
             // In __callStatic we pass false for this field, since we're loading directly from DB
-            // In this case, data will be keyed by actual DB field name, right?
             if ($flagAsChanged) {
                 // Ensure changed only contains actual db field names
                 $this->changed = array_intersect(
@@ -284,7 +272,7 @@ abstract class Norma
 
     public function Delete()
     {
-        foreach (static::$deleteTheseFirst as $relation) {
+        foreach (static::$deleteTheseRelationshipsFirst as $relation) {
             foreach ($this->$relation() as $a) {
                 $a->Delete();
             }
@@ -394,13 +382,15 @@ class NormaFind implements \Iterator, \ArrayAccess, \Countable
     protected $_orderBy;
 
     protected $data = null; // holds results of the query
-    public function __construct($className, $whereHash = array(), $limit = null, $order = null)
+    public function __construct($className, $whereHash = array(), $limit = null, array $order = array())
     {
         $this->className = $className;
         // Fixup where hash with correct table names
         if ($whereHash) $this->MergeWhereHash($whereHash);
         $this->_limit = $limit; // String
-        $this->_orderBy = $order; // String
+        if ($order) {
+            $this->OrderBy($order[0], $order[1]);
+        }
     }
 
     public function __get($name)
@@ -412,12 +402,16 @@ class NormaFind implements \Iterator, \ArrayAccess, \Countable
         die('Nope');
     }
 
+    // Assume that method calls correspond to a relationship we want to chain to
     public function __call($name, $args)
     {
         // get current class
         $className = $this->className;
         // Tie previous class to new
         $relationship = $className::Relationship($name);
+        if (!$relationship) {
+            throw new \Exception('NormaFind: Invalid relationship: ' . $name);
+        }
         $className2 = $relationship[1];
         $this->joins[] = array(
             $className::Table(),
@@ -428,8 +422,6 @@ class NormaFind implements \Iterator, \ArrayAccess, \Countable
         );
         // New join table designates final output class, so update it
         $this->className = $className2;
-        $className = $this->className;
-
         if ($args) {
             foreach ($args as $arg) {
                 $this->MergeWhereHash($arg);
@@ -439,9 +431,11 @@ class NormaFind implements \Iterator, \ArrayAccess, \Countable
         return $this;
     }
 
-    public function OrderBy($str)
+    public function OrderBy($alias, $direction)
     {
-        $this->_orderBy = $str;
+        $className = $this->className;
+        $direction = (strtolower($direction) == 'asc' ? 'asc' : 'desc');
+        $this->_orderBy = array(\Norma\Norma::PrepareField($className::Table(), $className::AliasToField($alias)), $direction);
 
         return $this;
     }
@@ -454,9 +448,7 @@ class NormaFind implements \Iterator, \ArrayAccess, \Countable
 
     public function Objects()
     {
-        $this->Done();
-
-        return $this->data;
+        return $this->Rows();
     }
     public function Rows()
     {
@@ -524,12 +516,10 @@ class NormaFind implements \Iterator, \ArrayAccess, \Countable
                 $parts[] = array_shift($where_pairs); // shift off the value that will be quoted+escaped
                 $sql = ' AND ';
             }
-        } else {
-            $parts[] = $sql;
+            $sql = '';
         }
-        $sql = '';
 
-        if ($this->_orderBy) $sql .= ' ORDER BY ' . $this->_orderBy;
+        if ($this->_orderBy) $sql .= ' ORDER BY ' . implode(' ', $this->_orderBy);
         if ($this->_limit) $sql .= ' LIMIT ' . $this->_limit;
         if ($sql) {
             $parts[] = $sql;
