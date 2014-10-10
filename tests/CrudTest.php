@@ -60,7 +60,7 @@ class CrudTest extends TestSetup
         );
         $a = new Article($data);
         $a->Create();
-        $this->assertEquals(3, $a->ID);
+        $this->assertEquals(4, $a->ID);
     }
 
     public function testCreate()
@@ -161,16 +161,9 @@ class CrudTest extends TestSetup
     // Article2 is a class that extends Article. Everything else should function normally
     public function testExtending()
     {
-        $data = array(
-            'ID' => 1,
-            'Title' => 'First Article',
-            'Body' => '',
-            'ThumbnailID' => 1,
-            'CoverID' => 2
-        );
-        $a = Article2::ID(1);
-        $this->assertEquals($data['Title'], $a->Title());
-        //$this->assertEquals(1,1);
+        $a = Article::ID(1);
+        $b = Article2::ID(1);
+        $this->assertEquals($a->Title, $b->Title());
     }
 
     // Test annotating with non-field data
@@ -282,6 +275,11 @@ class CrudTest extends TestSetup
             $d = null;
         }
         $this->assertNull($d);
+
+        // Fetch normal single-key row using 2 values
+        $a = Article::ID_CoverID(1,2);
+        $this->assertEquals(1, $a->ID);
+        $this->assertEquals(2, $a->CoverID);
     }
 
     public function testUniqueKey()
@@ -309,11 +307,17 @@ class CrudTest extends TestSetup
 
         $find = Article::Find();
         // 3 because we don't clear out the DB before each test method
-        $this->assertEquals(3, count($find));
+        $this->assertEquals(4, count($find));
 
         // Test OrderBy() and Limit()
         $rows = Article::Find()->OrderBy('ID', 'desc')->Limit(2);
+        $this->assertEquals(4, $rows[0]->ID);
+
+        // Test with IDs in array
+        $rows = Article::Find(array('ID' => array(1,3)))->OrderBy('ID', 'DESC');
         $this->assertEquals(3, $rows[0]->ID);
+        $this->assertEquals(1, $rows[1]->ID);
+        
     }
 
     public function testFromQuery() {
@@ -324,4 +328,5 @@ class CrudTest extends TestSetup
     }
 
     // test find with array of ids "id IN (1,2)"
+
 }

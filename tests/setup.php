@@ -163,6 +163,7 @@ class TestSetup extends PHPUnit_Framework_TestCase
         $sql[] = "insert into file (name, user_id) values('article2-cover.jpg', 1)";
         $sql[] = "insert into article (title, cover_id, thumbnail_id, author_id) values('First Article', 2, 1, 1)";
         $sql[] = "insert into article (title, cover_id, thumbnail_id, author_id) values('Second Article', 4, 3, 1)";
+        $sql[] = "insert into article (title, cover_id, thumbnail_id, author_id) values('Third Article', 3, 2, 1)";
         $sql[] = "insert into user (name) values('john day')";
         $sql[] = "insert into uniqueKey (key1, name) values(123, 'Special')";
         foreach ($sql as $s) $db->execute( $s );

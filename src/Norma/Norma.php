@@ -504,8 +504,13 @@ class NormaFind implements \Iterator, \ArrayAccess, \Countable
 
         // Where hash too
         foreach ($this->whereHash as $key => $value) {
-            $where_pairs[] = $key . '=';
-            $where_pairs[] = $value;
+            if (is_array($value)) {
+                $where_pairs[] = $key . ' IN ';
+                $where_pairs[] = $value;
+            } else {
+                $where_pairs[] = $key . '=';
+                $where_pairs[] = $value;
+            }
         }
 
         $parts = array();
