@@ -209,15 +209,19 @@ class CrudTest extends TestSetup
         //     BUT SHOULD WE CARE?
         try {
             $this->assertTrue(true === $a->Create());
+            $id = \Norma\Norma::$dbFacile->fetchCell('select * from nonAutoPK');
+            $this->assertTrue(0 === $id);
         } catch (\Exception $e) {
         }
-        $id = \Norma\Norma::$dbFacile->fetchCell('select * from nonAutoPK');
-        $this->assertTrue(0 === $id);
-        $b = $a->Save(); // This should probably fail, since a PK value was never supplied
-        $this->assertTrue(false === $b);
-        // Was the row created or not? Use dbFacile directly and find out
-        $id = \Norma\Norma::$dbFacile->fetchCell('select * from nonAutoPK');
-        $this->assertTrue(0 === $id);
+
+        try {
+            $b = $a->Save(); // This will likely fail on non-mysql, since a PK value was never supplied
+            $this->assertTrue(false === $b);
+            // Was the row created or not? Use dbFacile directly and find out
+            $id = \Norma\Norma::$dbFacile->fetchCell('select * from nonAutoPK');
+            $this->assertTrue(0 === $id);
+        } catch (\Exception $e) {
+        }
 
         // Now we specify a PK
         $a->ID = 1234567;
@@ -288,18 +292,32 @@ class CrudTest extends TestSetup
     }
 
 
-/*
     public function testFind()
     {
-        $one = Article::Find('id=1');
-        $a = array( Article::ID(1) );
-        $this->assertEquals($a, $one);
+        $find = Article::Find(array('ID' => 1));
+        $one = Article::ID(1);
 
-        $one = Article::Find('id=1');
-        $a = array( Article::ID(1) );
-        $this->assertEquals($a, $one);
+        $this->assertEquals( array($one), $find->Rows());
+
+        $this->assertEquals($one, $find[0]);
+
+        // Find from Article > User > FileUploads
+        $files = Article::Find(array('ID' => 1))->Author()->FileUploads();
+        $file = File::ID(1);
+        $this->assertFalse(empty($file));
+        $this->assertEquals($file, $files[0]);
+
+        $find = Article::Find();
+        // 3 because we don't clear out the DB before each test method
+        $this->assertEquals(3, count($find));
     }
-*/
+
+    public function testFromQuery() {
+        $article = Article::FromQuery('select * from article where id=2');
+        $obj = Article::ID(2);
+        $this->assertFalse(empty($article));
+        $this->assertEquals($article->Title, $obj->Title);
+    }
 
     // test find with array of ids "id IN (1,2)"
 }

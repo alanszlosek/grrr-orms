@@ -62,15 +62,6 @@ abstract class Norma
             }
         }
     }
-
-    protected static function GetAliasMap($name)
-    {
-        return static::$aliases[ $name ];
-    }
-    protected function GetData($name)
-    {
-        return $this->data[ static::GetAliasMap($name) ];
-    }
     public function __get($name)
     {
         // Check data cache first, so arbitrary things can be attached to instances if need be
@@ -156,18 +147,17 @@ abstract class Norma
         // If any of the PKs are matched ... fail if not all are provided
         if (sizeof($a) == sizeof($staticPK)) {
             foreach ($staticPK as $i => $key) {
-                // should be quoteValue
-                $where[] = static::quoteField(static::GetAliasMap($key)) . '=' . static::$dbFacile->quoteEscapeString($args[$i]);
+                $where[] = static::PrepareField(static::GetAliasMap($key)) . '=' . static::PrepareValue($args[$i]);
             }
         }
         if (sizeof($b) == sizeof(static::$keys)) {
             foreach (static::$keys as $i => $key) {
-                $where[] = static::quoteField(static::GetAliasMap($key)) . '=' . static::$dbFacile->quoteEscapeString($args[$i]);
+                $where[] = static::PrepareField(static::GetAliasMap($key)) . '=' . static::PrepareValue($args[$i]);
             }
         }
         if ($where) {
             // list fields rather than *?
-            $sql = 'SELECT * FROM ' . static::quoteField(static::$table) . ' WHERE ' . implode(' AND ', $where);
+            $sql = 'SELECT * FROM ' . static::PrepareField(static::$table) . ' WHERE ' . implode(' AND ', $where);
             if (Norma::$debug) trigger_error('Norma SQL: ' . $sql, E_USER_NOTICE);
             $row = Norma::$dbFacile->fetchRow($sql);
             if (!$row) {
@@ -183,6 +173,8 @@ abstract class Norma
     }
 
     /*
+    Find*() methods return a NormaFind instance, which can be used to fetch 1 or more objects
+
     WORK IN PROGRESS
     So you can do:
         $where = array('
@@ -194,18 +186,19 @@ abstract class Norma
         return new NormaFind(get_called_class(), $where);
     }
 
-    // $sql...
+    // Variable-length args
     public static function FindQuery()
     {
         $n = new NormaFind(get_called_class());
-        $n->Query(func_get_args());
+        $n->QueryAndCache(func_get_args());
 
         return $n;
     }
-    public static function FromQuery($sql, $parameters = array())
+
+    // Variable-length args
+    public static function FromQuery()
     {
-        if (Norma::$debug) trigger_error('Norma SQL: ' . $sql, E_USER_NOTICE);
-        $row = Norma::$dbFacile->fetchRow($sql, $parameters);
+        $row = call_user_func_array(array(Norma::$dbFacile, 'fetchRow'), func_get_args());
 
         return new static($row, false);
     }
@@ -242,7 +235,16 @@ abstract class Norma
         return $data;
     }
 
-    // Alphabetical
+    protected static function GetAliasMap($name)
+    {
+        return static::$aliases[ $name ];
+    }
+
+    protected function GetData($name)
+    {
+        return $this->data[ static::GetAliasMap($name) ];
+    }
+
     protected function ChangedData()
     {
         $data = array();
@@ -257,7 +259,6 @@ abstract class Norma
         return $data;
     }
 
-    // Still torn about whether this should go through Save() ...
     public function Create()
     {
         $data = $this->ChangedData();
@@ -335,7 +336,7 @@ abstract class Norma
     {
         return static::$table;
     }
-    public static function Alias($name)
+    public static function AliasToField($name)
     {
         return static::$aliases[ $name ];
     }
@@ -355,13 +356,17 @@ abstract class Norma
         return static::$pk;
     }
 
-    public static function quoteField($field, $field2 = null)
+    public static function PrepareField($field, $field2 = null)
     {
         if ($field2) {
             return Norma::$dbFacile->quoteField($field) . '.' . Norma::$dbFacile->quoteField($field2);
         } else {
             return Norma::$dbFacile->quoteField($field);
         }
+    }
+    public static function PrepareValue($value)
+    {
+        return static::$dbFacile->quoteEscapeString($value);
     }
 }
 
@@ -372,17 +377,19 @@ TODO
 * Allow chaining through to same Class more than once, passing additional where clauses
 * Should we allow string-based where clauses? ... really don't want to parse them in order to prepend table name
 * Use NormaChain as Find() ... Article::Find()
-    Find() accepts where clause
+    Find() accepts where hash. That's the only way you can add where clauses to joins. Too much work to support string where clauses, just write the query yourself.
     * Can then chain to perform joins
-    * How to specify the class that should ultimately be instantiated for each resulting row?
+
+Chaining isn't exactly a join. You don't get back data from all joined tables, just the last one.
+
+Treat each NormaFind instance as an array ... fetch keys, foreach over it, get count/sizeof
 
 */
-class NormaFind implements \Iterator
+class NormaFind implements \Iterator, \ArrayAccess, \Countable
 {
     protected $className = null;
     protected $joins = array();
     protected $whereHash = array();
-    protected $_where = array();
     protected $_limit;
     protected $_orderBy;
 
@@ -405,14 +412,6 @@ class NormaFind implements \Iterator
         die('Nope');
     }
 
-    // the logic here is screwy
-    // some of these are probably overkill
-    /*
-    Handles:
-    Article::ID(1)->Author()
-    FUCK QUERY STRINGS IN JOINS
-    AND FUCK Where() syntax
-    */
     public function __call($name, $args)
     {
         // get current class
@@ -420,14 +419,13 @@ class NormaFind implements \Iterator
         // Tie previous class to new
         $relationship = $className::Relationship($name);
         $className2 = $relationship[1];
-        $r = array(
+        $this->joins[] = array(
             $className::Table(),
-            $className::Alias( $relationship[0] ),
+            $className::AliasToField( $relationship[0] ),
             $className2::Table(),
-            $className2::Alias( $relationship[2] ),
+            $className2::AliasToField( $relationship[2] ),
 
         );
-        $this->joins[] = $r;
         // New join table designates final output class, so update it
         $this->className = $className2;
         $className = $this->className;
@@ -454,13 +452,6 @@ class NormaFind implements \Iterator
         return $this;
     }
 
-    public function First()
-    {
-        $this->Limit(1);
-        $this->Done();
-
-        return current($this->data);
-    }
     public function Objects()
     {
         $this->Done();
@@ -474,24 +465,15 @@ class NormaFind implements \Iterator
         return $this->data;
     }
 
-    public function End()
-    {
-        // Placeholder
-        return $this;
-    }
-
     // Fixup where clause according to class name
     protected function MergeWhereHash($whereHash, $className = null)
     {
         if (!$className) $className = $this->className;
         foreach ($whereHash as $key => $value) {
-            // need to do proper escaping and quoting here
-            $field = $this->escapeField($className::Table(), $className::Alias($key));
+            $field = \Norma\Norma::PrepareField($className::Table(), $className::AliasToField($key));
             $this->whereHash[ $field ] = $value;
         }
     }
-
-    // Need a way to get the SQL
 
     // Done with Find() and method chaining
     public function MakeQueryParts()
@@ -500,8 +482,9 @@ class NormaFind implements \Iterator
         $table = $className::Table();
 
         // What a pain to have to do field aliases in the SQL. ugh
-        // backtick these values
-        $sql = 'SELECT ' . \Norma\Norma::quoteField($table) . '.* from ' . \Norma\Norma::quoteField($table);
+        $table = \Norma\Norma::PrepareField($table);
+        $sql = 'SELECT ' . $table . '.* FROM ' . $table;
+
         /*
         Thinking I can support all I need by identifying the type of where clause
         4 elements - join
@@ -509,49 +492,53 @@ class NormaFind implements \Iterator
         2 elements - string clause, parameters
         */
 
-        $wheres = array();
+        $where_pairs = array();
         foreach ($this->joins as $where) {
             $sz = sizeof($where);
             if ($sz == 4) {
-                $sql .= ' LEFT JOIN ' . \Norma\Norma::quoteField($where[0]) . ' ON ('
-                    . \Norma\Norma::quoteField($where[0], $where[1])
+                $sql .= ' LEFT JOIN ' . \Norma\Norma::PrepareField($where[0]) . ' ON ('
+                    . \Norma\Norma::PrepareField($where[0], $where[1])
                     . '='
-                    . \Norma\Norma::quoteField($where[2], $where[3])
+                    . \Norma\Norma::PrepareField($where[2], $where[3])
                     . ')';
             } elseif ($sz == 3) {
-                $sql .= ' LEFT JOIN ' . \Norma\Norma::quoteField($where[0]);
-                $wheres[] = \Norma\Norma::quoteField($where[0], $where[1]) . '=';
-                $wheres[] = $where[2];
+                $sql .= ' LEFT JOIN ' . \Norma\Norma::PrepareField($where[0]);
+                // Wish there was a nice way to let dbFacile wrap ticks around Table.Field later so we don't have to worry about it
+                $where_pairs[] = $where[0] . '.' . $where[1] . '=';
+                $where_pairs[] = $where[2];
             }
         }
         // need to add where IN support to dbFacile
 
-        // bah, fucking string building
-        if ($wheres) {
-            $sql .= ' WHERE ' . implode(' AND ', $wheres);
-            /*
-            array(
-                'select ... WHERE firstfield=',
-                'value'
-            */
+        // Where hash too
+        foreach ($this->whereHash as $key => $value) {
+            $where_pairs[] = $key . '=';
+            $where_pairs[] = $value;
         }
-        // be careful sql injection
+
+        $parts = array();
+        if ($where_pairs) {
+            $sql .= ' WHERE ';
+            while ($where_pairs) {
+                $parts[] = $sql . array_shift($where_pairs);
+                $parts[] = array_shift($where_pairs); // shift off the value that will be quoted+escaped
+                $sql = ' AND ';
+            }
+        } else {
+            $parts[] = $sql;
+        }
+        $sql = '';
+
         if ($this->_orderBy) $sql .= ' ORDER BY ' . $this->_orderBy;
         if ($this->_limit) $sql .= ' LIMIT ' . $this->_limit;
+        if ($sql) {
+            $parts[] = $sql;
+        }
 
-        return array($sql, $parameters);
+        return $parts;
     }
 
-    // Done with Find() and method chaining
-    protected function Finalize()
-    {
-        $parts = $this->MakeQueryParts();
-        if (Norma::$debug) trigger_error('Norma SQL: ' . $sql, E_USER_NOTICE);
-
-        $this->Query($parts);
-    }
-
-    public function Query($queryParts)
+    public function QueryAndCache($queryParts)
     {
         $className = $this->className;
         $rows = call_user_func_array(array(Norma::$dbFacile, 'fetchAll'), $queryParts);
@@ -562,20 +549,21 @@ class NormaFind implements \Iterator
         $this->data = $out;
     }
 
-
-
     protected function Done()
     {
-        if ($this->data === null) $this->Finalize();
+        if ($this->data === null) {
+            $parts = $this->MakeQueryParts();
+            $this->QueryAndCache($parts);
+        }
+        return $this;
     }
 
-    // Iterator implementation methods
+    // Iterator interface methods
     public function rewind()
     {
         $this->Done();
         reset($this->data);
     }
-
     public function current()
     {
         $this->Done();
@@ -583,28 +571,44 @@ class NormaFind implements \Iterator
 
         return $var;
     }
-
     public function key()
     {
         $this->Done();
-        $var = key($this->data);
-
-        return $var;
+        return key($this->data);
     }
-
     public function next()
     {
         $this->Done();
-        $var = next($this->data);
-
-        return $var;
+        return next($this->data);
     }
-
     public function valid()
     {
         $this->Done();
-        $var = $this->current() !== false;
+        return $this->current() !== false;
+    }
 
-        return $var;
+    // ArrayAccess interface methods
+    public function offsetExists($offset)
+    {
+        $this->Done();
+        return isset($this->data[$offset]);
+    }
+    public function offsetGet($offset)
+    {
+        $this->Done();
+        return $this->data[$offset];
+    }
+    // offsetSet and offsetUnset() should probably be no-ops
+    public function offsetSet($offset, $value)
+    {
+    }
+    public function offsetUnset($offset)
+    {
+    }
+
+    // Countable interface methods
+    public function count() {
+        $this->Done();
+        return count($this->data);
     }
 }
