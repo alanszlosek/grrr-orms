@@ -431,11 +431,20 @@ class NormaFind implements \Iterator, \ArrayAccess, \Countable
         return $this;
     }
 
-    public function OrderBy($alias, $direction)
+    // Handle multiple pairs
+    public function OrderBy($pairs)
     {
+        $pairs = func_get_args();
+        if (count($pairs) % 2 != 0) {
+            throw new \Exception('NormaFind: OrderBy needs pairs');
+        }
         $className = $this->className;
-        $direction = (strtolower($direction) == 'asc' ? 'asc' : 'desc');
-        $this->_orderBy = array(\Norma\Norma::PrepareField($className::Table(), $className::AliasToField($alias)), $direction);
+        $out = array();
+        for ($i = 0; $i < count($pairs); $i+=2) {
+            $field = $pairs[$i];
+            $out[] = \Norma\Norma::PrepareField($className::Table(), $className::AliasToField($field)) . ' ' . (strtoupper($pairs[$i+1]) == 'ASC' ? 'ASC' : 'DESC');
+        }
+        $this->_orderBy = $out;
 
         return $this;
     }
@@ -524,7 +533,7 @@ class NormaFind implements \Iterator, \ArrayAccess, \Countable
             $sql = '';
         }
 
-        if ($this->_orderBy) $sql .= ' ORDER BY ' . implode(' ', $this->_orderBy);
+        if ($this->_orderBy) $sql .= ' ORDER BY ' . implode(',', $this->_orderBy);
         if ($this->_limit) $sql .= ' LIMIT ' . $this->_limit;
         if ($sql) {
             $parts[] = $sql;
